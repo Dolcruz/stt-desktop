@@ -207,11 +207,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self._cancel_btn.setMinimumHeight(48)
         
         # Settings button with gear icon
+        self._settings_btn = QtWidgets.QPushButton("⚙ Einstellungen")
+        self._settings_btn.setMinimumHeight(48)
+        
         self._visual_settings_btn = QtWidgets.QPushButton("⚙ Visualisierung")
         self._visual_settings_btn.setMinimumHeight(48)
         
         self._btn_row.addWidget(self._start_btn, 3)
         self._btn_row.addWidget(self._cancel_btn, 1)
+        self._btn_row.addWidget(self._settings_btn, 2)
         self._btn_row.addWidget(self._visual_settings_btn, 2)
 
         central = QtWidgets.QWidget()
@@ -256,6 +260,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Wire
         self._start_btn.clicked.connect(self.start_stop_requested.emit)
         self._cancel_btn.clicked.connect(self.cancel_requested.emit)
+        self._settings_btn.clicked.connect(self._open_settings)
         self._visual_settings_btn.clicked.connect(self._open_visual_settings)
         act_record.triggered.connect(self.start_stop_requested.emit)
         act_cancel.triggered.connect(self.cancel_requested.emit)

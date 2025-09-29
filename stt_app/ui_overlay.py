@@ -90,7 +90,7 @@ class Particle3DWidget(QtWidgets.QWidget):
         
     def set_color_hue(self, hue: int) -> None:
         """Set color hue (0-360)."""
-        self._color_hue = hue
+        self._color_hue = max(0, min(359, hue))  # Clamp to valid HSV hue range
         
     def _animate(self) -> None:
         """Update animation state."""
@@ -189,8 +189,8 @@ class Particle3DWidget(QtWidgets.QWidget):
                 QtCore.QPointF(data['x'], data['y']),
                 outer_glow_size / 2
             )
-            # Dynamic color glow
-            glow_color = QtGui.QColor.fromHsv(self._color_hue, 180, 255)
+            # Dynamic color glow (with validation to prevent HSV warnings)
+            glow_color = QtGui.QColor.fromHsv(max(0, min(359, self._color_hue)), 180, 255)
             outer_gradient.setColorAt(0, QtGui.QColor(glow_color.red(), glow_color.green(), glow_color.blue(), int(120 * brightness * self._glow_intensity)))
             outer_gradient.setColorAt(0.3, QtGui.QColor(glow_color.red(), glow_color.green(), glow_color.blue(), int(80 * brightness * self._glow_intensity)))
             outer_gradient.setColorAt(0.6, QtGui.QColor(glow_color.red(), glow_color.green(), glow_color.blue(), int(40 * brightness * self._glow_intensity)))
@@ -210,7 +210,7 @@ class Particle3DWidget(QtWidgets.QWidget):
                 QtCore.QPointF(data['x'], data['y']),
                 mid_glow_size / 2
             )
-            mid_color = QtGui.QColor.fromHsv(self._color_hue, 200, 255)
+            mid_color = QtGui.QColor.fromHsv(max(0, min(359, self._color_hue)), 200, 255)
             mid_gradient.setColorAt(0, QtGui.QColor(mid_color.red(), mid_color.green(), mid_color.blue(), int(180 * brightness * self._glow_intensity)))
             mid_gradient.setColorAt(0.5, QtGui.QColor(mid_color.red(), mid_color.green(), mid_color.blue(), int(120 * brightness * self._glow_intensity)))
             mid_gradient.setColorAt(1, QtGui.QColor(0, 0, 0, 0))
@@ -228,7 +228,7 @@ class Particle3DWidget(QtWidgets.QWidget):
                 QtCore.QPointF(data['x'], data['y']),
                 inner_glow_size / 2
             )
-            inner_color = QtGui.QColor.fromHsv(self._color_hue, 150, 255)
+            inner_color = QtGui.QColor.fromHsv(max(0, min(359, self._color_hue)), 150, 255)
             inner_gradient.setColorAt(0, QtGui.QColor(inner_color.red(), inner_color.green(), inner_color.blue(), int(255 * brightness * self._glow_intensity)))
             inner_gradient.setColorAt(0.7, QtGui.QColor(inner_color.red(), inner_color.green(), inner_color.blue(), int(180 * brightness * self._glow_intensity)))
             inner_gradient.setColorAt(1, QtGui.QColor(0, 0, 0, 0))
