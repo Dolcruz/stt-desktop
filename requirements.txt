@@ -1,0 +1,26 @@
+# GUI framework
+PySide6>=6.7.0
+
+# Global hotkeys and key simulation
+keyboard>=0.13.5
+
+# Audio recording and processing
+sounddevice>=0.4.7
+soundfile>=0.12.1
+numpy>=1.26.0
+
+# Groq API SDK
+groq>=0.9.0
+
+# Secure credential storage
+keyring>=25.2.0
+
+# Config and environment
+python-dotenv>=1.0.1
+pydantic>=2.7.0
+
+# Retry logic
+tenacity>=8.2.3
+
+# Optional Windows clipboard/paste helpers
+pywin32>=306; platform_system == "Windows"
