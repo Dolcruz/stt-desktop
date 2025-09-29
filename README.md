@@ -6,13 +6,23 @@ präzise Transkription mit Echtzeit-Aufnahme-Feedback und Auto-Copy/Paste-Funkti
 
 ## Features
 
-- **Modernes Dark Mode Design** - Professionelles dunkles Interface
-- **Kreisförmiges Partikel-Audio-Feedback** - 800 Partikel im Ring, expandiert/schrumpft mit Lautstärke
+### 🎨 Visuelles Design
+- **Modernes Dark Mode Design** - Professionelles dunkles Interface (schwarz-weiß)
+- **3D Partikel-Kugel Visualisierung** - Rotierende Sphere mit 600+ Partikeln
+  - Expandiert/schrumpft dynamisch basierend auf Lautstärke und Sprachinput
+  - Neon-Glow-Effekt in anpassbaren Farben
+  - Echtzeit-Rotation mit 3D-Perspektive
+- **Konfigurierbare Visualisierung** - Partikel-Anzahl, Glow-Intensität und Farbe anpassbar
+- **Live-Preview** - Echte Mikrofon-Vorschau in den Visualisierungs-Einstellungen
+- **Overlay oben rechts** - Nicht-intrusives Feedback während der Aufnahme
+
+### ⚙️ Funktionalität
 - **Doppelte Hotkey-Unterstützung** - Globale Hotkeys (systemweit) + Lokale Shortcuts (im Fenster)
+- **Intelligenter Verlauf** - Alle Transkriptionen lokal gespeichert
+  - Doppelklick auf Eintrag zeigt vollständigen Text
+  - Direktes Kopieren aus Detailansicht
 - **Datenschutz** - API-Schlüssel sicher im Windows Credential Manager gespeichert
 - **Auto-Copy & Paste** - Transkription automatisch in Zwischenablage oder direkt einfügen
-- **Verlauf** - Alle Transkriptionen werden lokal gespeichert
-- **Overlay oben rechts** - Nicht-intrusives Feedback während der Aufnahme
 
 ## Quick Start (Windows PowerShell)
 
@@ -33,17 +43,22 @@ pip install -r requirements.txt
 python main.py
 ```
 
-## API Key
+## API Key (erforderlich!)
 
-- Recommended: Set the API key via the Settings dialog in the app (stored securely via Windows Credential Manager using `keyring`).
-- Alternatively, set an environment variable before running:
+⚠️ **Du benötigst einen Groq API-Key!** Hol dir einen kostenlosen Key auf: [console.groq.com/keys](https://console.groq.com/keys)
+
+### API Key einrichten:
+
+**Option 1: Über die App-UI (empfohlen)**
+1. Starte die App: `python main.py`
+2. Gib deinen API-Key im "Groq API Key" Feld ein
+3. Klicke "Speichern" - Der Key wird sicher im Windows Credential Manager gespeichert
+
+**Option 2: Umgebungsvariable setzen**
+```powershell
+setx GROQ_API_KEY "YOUR_GROQ_API_KEY_HERE"
 ```
-setx GROQ_API_KEY "YOUR_GROQ_API_KEY"
-```
-- Or via CLI once (saves to keyring):
-```
-python -m stt_app.cli set-key YOUR_GROQ_API_KEY
-```
+Dann PowerShell neu starten.
 
 ## Tastenkombinationen
 
