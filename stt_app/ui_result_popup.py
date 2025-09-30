@@ -175,11 +175,13 @@ class ResultPopup(QtWidgets.QDialog):
         layout.addLayout(btn_row)
         layout.addWidget(self._status_label)
 
+        # Disable auto-close to allow users to read and correct text
         self._timer = QtCore.QTimer(self)
         self._timer.timeout.connect(self._tick)
-        if auto_close_seconds > 0:
-            self._timer.start(1000)
-            self._update_status()
+        # Auto-close disabled for better UX
+        # if auto_close_seconds > 0:
+        #     self._timer.start(1000)
+        #     self._update_status()
 
         self._copy_original_btn.clicked.connect(self._copy_original)
         self._copy_corrected_btn.clicked.connect(self._copy_corrected)
@@ -202,10 +204,12 @@ class ResultPopup(QtWidgets.QDialog):
         self._update_status()
 
     def _update_status(self) -> None:
-        if self._pinned:
-            self._status_label.setText("Angeheftet; automatisch Schließen ist pausiert.")
-        else:
-            self._status_label.setText(f"Schließt automatisch in {self._remaining}s")
+        # Auto-close disabled, no need to show countdown
+        pass
+        # if self._pinned:
+        #     self._status_label.setText("Angeheftet; automatisch Schließen ist pausiert.")
+        # else:
+        #     self._status_label.setText(f"Schließt automatisch in {self._remaining}s")
 
     def _copy_original(self) -> None:
         QtWidgets.QApplication.clipboard().setText(self._original_text)
@@ -239,6 +243,7 @@ class ResultPopup(QtWidgets.QDialog):
             return self._corrected_text
         return self._original_text
     
+    @QtCore.Slot(str)
     def set_corrected_text(self, corrected_text: str) -> None:
         """Set and display the corrected text."""
         self._corrected_text = corrected_text
