@@ -136,6 +136,7 @@ class SettingsDialog(QtWidgets.QDialog):
 class MainWindow(QtWidgets.QMainWindow):
     start_stop_requested = QtCore.Signal()
     cancel_requested = QtCore.Signal()
+    correct_text_requested = QtCore.Signal(str, object)  # (text, callback_dialog)
 
     def __init__(self, settings: Optional[AppSettings] = None) -> None:
         super().__init__()
@@ -338,17 +339,18 @@ class MainWindow(QtWidgets.QMainWindow):
             pass
     
     def _show_history_detail(self, item: QtWidgets.QListWidgetItem) -> None:
-        """Show full text of history item in a dialog."""
+        """Show full text of history item in a dialog with grammar correction option."""
         # Get index of clicked item
         index = self._history.row(item)
         
         if 0 <= index < len(self._history_data):
             history_item = self._history_data[index]
+            original_text = history_item['text']
             
             # Create dialog to show full text
             dialog = QtWidgets.QDialog(self)
             dialog.setWindowTitle("Transkription Details")
-            dialog.setMinimumWidth(600)
+            dialog.setMinimumWidth(620)
             dialog.setMinimumHeight(400)
             dialog.setStyleSheet("""
                 QDialog {
@@ -365,41 +367,152 @@ class MainWindow(QtWidgets.QMainWindow):
                 padding: 8px 0px;
             """)
             
-            # Text area (read-only)
-            text_edit = QtWidgets.QPlainTextEdit()
-            text_edit.setPlainText(history_item['text'])
-            text_edit.setReadOnly(True)
-            text_edit.setStyleSheet("""
+            # Original text area
+            original_header = QtWidgets.QLabel("📝 Original")
+            original_header.setStyleSheet("font-size: 11pt; font-weight: 600; color: #f0f0f0; padding: 4px 0px;")
+            
+            original_text_edit = QtWidgets.QPlainTextEdit()
+            original_text_edit.setPlainText(original_text)
+            original_text_edit.setReadOnly(True)
+            original_text_edit.setMinimumHeight(110)
+            original_text_edit.setStyleSheet("""
                 QPlainTextEdit {
                     background-color: #242424;
-                    border: 1.5px solid #3d3d3d;
-                    border-radius: 12px;
-                    padding: 14px;
-                    font-size: 11pt;
-                    line-height: 1.5;
+                    border: 2px solid #4a8a4a;
+                    border-radius: 8px;
+                    padding: 12px;
+                    font-size: 10.5pt;
                     color: #f0f0f0;
                 }
             """)
             
-            # Buttons
-            copy_btn = QtWidgets.QPushButton("Kopieren")
-            copy_btn.setProperty("type", "primary")
-            copy_btn.clicked.connect(lambda: self._copy_to_clipboard(history_item['text']))
+            copy_original_btn = QtWidgets.QPushButton("📋 Kopieren (Original)")
+            copy_original_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #2a5a2a;
+                    color: #ffffff;
+                    font-weight: 600;
+                    padding: 8px 12px;
+                    border-radius: 6px;
+                }
+                QPushButton:hover {
+                    background-color: #3a6a3a;
+                }
+            """)
+            copy_original_btn.clicked.connect(lambda: self._copy_to_clipboard(original_text))
+            
+            # Corrected text area (initially hidden)
+            corrected_container = QtWidgets.QWidget()
+            corrected_layout = QtWidgets.QVBoxLayout(corrected_container)
+            corrected_layout.setContentsMargins(0, 8, 0, 0)
+            corrected_layout.setSpacing(6)
+            
+            corrected_header = QtWidgets.QLabel("✨ Korrigiert")
+            corrected_header.setStyleSheet("font-size: 11pt; font-weight: 600; color: #6ab4ff; padding: 4px 0px;")
+            
+            corrected_text_edit = QtWidgets.QPlainTextEdit()
+            corrected_text_edit.setReadOnly(True)
+            corrected_text_edit.setMinimumHeight(110)
+            corrected_text_edit.setStyleSheet("""
+                QPlainTextEdit {
+                    background-color: #242424;
+                    border: 2px solid #4a7a9a;
+                    border-radius: 8px;
+                    padding: 12px;
+                    font-size: 10.5pt;
+                    color: #f0f0f0;
+                }
+            """)
+            
+            copy_corrected_btn = QtWidgets.QPushButton("📋 Kopieren (Korrigiert)")
+            copy_corrected_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #2a5a8a;
+                    color: #ffffff;
+                    font-weight: 600;
+                    padding: 8px 12px;
+                    border-radius: 6px;
+                }
+                QPushButton:hover {
+                    background-color: #3a6a9a;
+                }
+            """)
+            
+            corrected_layout.addWidget(corrected_header)
+            corrected_layout.addWidget(corrected_text_edit)
+            corrected_layout.addWidget(copy_corrected_btn)
+            
+            # Initially hide corrected container
+            corrected_container.hide()
+            
+            # Status label
+            status_label = QtWidgets.QLabel("")
+            status_label.setStyleSheet("color: #a0a0a0; font-size: 9pt; padding: 6px 0px;")
+            
+            # Action buttons
+            correct_btn = QtWidgets.QPushButton("✓ Korrigieren")
+            correct_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #5a6a2a;
+                    color: #ffffff;
+                    font-weight: 600;
+                    padding: 8px 16px;
+                    border-radius: 6px;
+                }
+                QPushButton:hover {
+                    background-color: #6a7a3a;
+                }
+                QPushButton:disabled {
+                    background-color: #3a3a3a;
+                    color: #808080;
+                }
+            """)
+            
+            def on_correct_clicked():
+                """Handle grammar correction for history item."""
+                status_label.setText("Korrigiere Grammatik...")
+                correct_btn.setEnabled(False)
+                
+                # Create callback that will be called with corrected text
+                def on_corrected(corrected_text: str):
+                    corrected_text_edit.setPlainText(corrected_text)
+                    copy_corrected_btn.clicked.connect(lambda: self._copy_to_clipboard(corrected_text))
+                    corrected_container.show()
+                    status_label.setText("✓ Grammatik korrigiert!")
+                    correct_btn.setEnabled(True)
+                    dialog.setMinimumHeight(600)
+                
+                def on_error(error_msg: str):
+                    status_label.setText(f"Fehler: {error_msg}")
+                    correct_btn.setEnabled(True)
+                
+                # Store callbacks on dialog for access from controller
+                dialog._correction_callback = on_corrected
+                dialog._correction_error_callback = on_error
+                
+                # Emit signal to controller
+                self.correct_text_requested.emit(original_text, dialog)
+            
+            correct_btn.clicked.connect(on_correct_clicked)
             
             close_btn = QtWidgets.QPushButton("Schließen")
             close_btn.clicked.connect(dialog.accept)
             
             btn_layout = QtWidgets.QHBoxLayout()
-            btn_layout.addWidget(copy_btn)
+            btn_layout.addWidget(correct_btn)
             btn_layout.addStretch()
             btn_layout.addWidget(close_btn)
             
             # Main layout
             layout = QtWidgets.QVBoxLayout(dialog)
             layout.setContentsMargins(24, 20, 24, 20)
-            layout.setSpacing(12)
+            layout.setSpacing(10)
             layout.addWidget(timestamp_label)
-            layout.addWidget(text_edit)
+            layout.addWidget(original_header)
+            layout.addWidget(original_text_edit)
+            layout.addWidget(copy_original_btn)
+            layout.addWidget(corrected_container)
+            layout.addWidget(status_label)
             layout.addLayout(btn_layout)
             
             dialog.exec()

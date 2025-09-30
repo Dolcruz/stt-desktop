@@ -51,6 +51,7 @@ class Controller(QtCore.QObject):
         # Hook UI signals first
         self.window.start_stop_requested.connect(self.toggle_recording)
         self.window.cancel_requested.connect(self.cancel_recording)
+        self.window.correct_text_requested.connect(self.correct_history_text)
         self.overlay.cancel_requested.connect(self.cancel_recording)
         
         # Hook visual settings button
@@ -210,24 +211,16 @@ class Controller(QtCore.QObject):
     
     def _on_manual_correction(self, popup: ResultPopup) -> None:
         """Handle manual grammar correction button click."""
-        # Get current text from popup
-        original_text = popup.get_text()
+        # Get original text from popup (not the currently active one)
+        original_text = popup._original_text
         
         # Correct grammar in background thread
         def worker():
             try:
                 corrected = self.transcriber.correct_grammar(original_text)
-                # Update popup text on UI thread
+                # Update popup with corrected text on UI thread
                 QtCore.QMetaObject.invokeMethod(
-                    popup, "set_text", QtCore.Qt.QueuedConnection, QtCore.Q_ARG(str, corrected)
-                )
-                QtCore.QMetaObject.invokeMethod(
-                    popup._status_label, "setText", QtCore.Qt.QueuedConnection, 
-                    QtCore.Q_ARG(str, "✓ Grammatik korrigiert")
-                )
-                QtCore.QMetaObject.invokeMethod(
-                    popup._correct_btn, "setEnabled", QtCore.Qt.QueuedConnection, 
-                    QtCore.Q_ARG(bool, True)
+                    popup, "set_corrected_text", QtCore.Qt.QueuedConnection, QtCore.Q_ARG(str, corrected)
                 )
             except Exception as e:
                 logging.getLogger(__name__).error(f"Manual grammar correction failed: {e}")
@@ -241,6 +234,23 @@ class Controller(QtCore.QObject):
                 )
         
         threading.Thread(target=worker, name="GrammarCorrectionThread", daemon=True).start()
+
+    @QtCore.Slot(str, object)
+    def correct_history_text(self, text: str, dialog: object) -> None:
+        """Handle grammar correction request from history dialog."""
+        def worker():
+            try:
+                corrected = self.transcriber.correct_grammar(text)
+                # Call success callback on UI thread using QTimer
+                if hasattr(dialog, '_correction_callback'):
+                    QtCore.QTimer.singleShot(0, lambda: dialog._correction_callback(corrected))
+            except Exception as e:
+                logging.getLogger(__name__).error(f"History grammar correction failed: {e}")
+                # Call error callback on UI thread using QTimer
+                if hasattr(dialog, '_correction_error_callback'):
+                    QtCore.QTimer.singleShot(0, lambda: dialog._correction_error_callback(str(e)))
+        
+        threading.Thread(target=worker, name="HistoryGrammarCorrectionThread", daemon=True).start()
 
     # Public controls
     @QtCore.Slot()
