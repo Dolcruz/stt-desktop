@@ -129,6 +129,7 @@ class Controller(QtCore.QObject):
     def _cancelled_ui(self) -> None:
         self.overlay.hide()
         self.window.set_status("Abgebrochen")
+        self.window.set_recording_state(False)
 
     def _on_record_error(self, message: str) -> None:
         QtCore.QMetaObject.invokeMethod(
@@ -139,6 +140,7 @@ class Controller(QtCore.QObject):
     def _record_error_ui(self, message: str) -> None:
         self.overlay.hide()
         self.window.set_status(f"Audiofehler: {message}")
+        self.window.set_recording_state(False)
 
     @QtCore.Slot(str)
     def _start_transcription(self, wav_path_str: str) -> None:
@@ -167,6 +169,7 @@ class Controller(QtCore.QObject):
     @QtCore.Slot(str)
     def _show_result(self, text: str) -> None:
         self.window.set_status("Fertig")
+        self.window.set_recording_state(False)
         
         # Check if automatic grammar correction is enabled
         if self.settings.auto_grammar_correction:
@@ -247,26 +250,38 @@ class Controller(QtCore.QObject):
 
     @QtCore.Slot(str, object)
     def correct_history_text(self, text: str, dialog: object) -> None:
-        """Handle grammar correction request from history dialog."""
+        """Handle combined correction & translation request from history dialog."""
         def worker():
             try:
+                # Get target language from dialog (empty string = no translation)
+                target_language = getattr(dialog, '_target_language', '')
+                
+                # Step 1: Always correct grammar first
                 corrected = self.transcriber.correct_grammar(text)
+                
+                # Step 2: If target language specified, translate the corrected text
+                if target_language:
+                    final_text = self.transcriber.translate_text(corrected, target_language)
+                else:
+                    final_text = corrected
+                
                 # Call success callback on UI thread using QTimer
-                if hasattr(dialog, '_correction_callback'):
-                    QtCore.QTimer.singleShot(0, lambda: dialog._correction_callback(corrected))
+                if hasattr(dialog, '_process_callback'):
+                    QtCore.QTimer.singleShot(0, lambda: dialog._process_callback(final_text, target_language))
             except Exception as e:
-                logging.getLogger(__name__).error(f"History grammar correction failed: {e}")
+                logging.getLogger(__name__).error(f"History text processing failed: {e}")
                 # Call error callback on UI thread using QTimer
-                if hasattr(dialog, '_correction_error_callback'):
-                    QtCore.QTimer.singleShot(0, lambda: dialog._correction_error_callback(str(e)))
+                if hasattr(dialog, '_process_error_callback'):
+                    QtCore.QTimer.singleShot(0, lambda: dialog._process_error_callback(str(e)))
         
-        threading.Thread(target=worker, name="HistoryGrammarCorrectionThread", daemon=True).start()
+        threading.Thread(target=worker, name="HistoryProcessTextThread", daemon=True).start()
 
     # Public controls
     @QtCore.Slot()
     def toggle_recording(self) -> None:
         if self.recorder.is_recording():
             self.window.set_status("Stoppe Aufnahme…")
+            self.window.set_recording_state(False)
             self.recorder.stop()
             return
         # Start
@@ -274,11 +289,13 @@ class Controller(QtCore.QObject):
         if started:
             self.overlay.show_top_right()
             self.window.set_status("Aufnahme läuft… (Alt+T zum Stoppen)")
+            self.window.set_recording_state(True)
 
     @QtCore.Slot()
     def cancel_recording(self) -> None:
         if self.recorder.is_recording():
             self.window.set_status("Abbreche…")
+            self.window.set_recording_state(False)
             self.recorder.cancel()
     
     @QtCore.Slot()

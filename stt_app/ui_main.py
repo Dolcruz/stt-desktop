@@ -174,13 +174,19 @@ class MainWindow(QtWidgets.QMainWindow):
         hl.addWidget(pill)
         self._status_pill = pill
 
-        # Controls - Dark mode design
+        # Status display - Redesigned to NOT look like a button
         self._status_label = QtWidgets.QLabel("Bereit")
+        self._status_label.setAlignment(QtCore.Qt.AlignCenter)
         self._status_label.setStyleSheet("""
-            font-size: 13pt; 
-            font-weight: 600; 
-            color: #f0f0f0;
-            padding: 8px 0px;
+            QLabel {
+                font-size: 12pt; 
+                font-weight: 500; 
+                color: #b0b0b0;
+                background-color: transparent;
+                border: none;
+                padding: 12px 16px;
+                border-radius: 0px;
+            }
         """)
         
         # Info label for shortcuts - no emoji
@@ -319,6 +325,18 @@ class MainWindow(QtWidgets.QMainWindow):
         self._status_label.setText(text)
         self._status_pill.setText(text)
         self._tray.setToolTip(text)
+    
+    def set_recording_state(self, is_recording: bool) -> None:
+        """Update UI to reflect recording state."""
+        if is_recording:
+            self._start_btn.setText("⏹ Aufnahme beenden")
+            self._start_btn.setProperty("type", "danger")
+        else:
+            self._start_btn.setText("Aufnahme starten")
+            self._start_btn.setProperty("type", "primary")
+        # Force style refresh
+        self._start_btn.style().unpolish(self._start_btn)
+        self._start_btn.style().polish(self._start_btn)
 
     def _open_settings(self) -> None:
         dlg = SettingsDialog(self.settings, self)
@@ -449,9 +467,73 @@ class MainWindow(QtWidgets.QMainWindow):
             status_label = QtWidgets.QLabel("")
             status_label.setStyleSheet("color: #a0a0a0; font-size: 9pt; padding: 6px 0px;")
             
+            # Translation controls (same as ResultPopup)
+            translate_label = QtWidgets.QLabel("🌍 Übersetzen:")
+            translate_label.setStyleSheet("font-size: 10pt; color: #f0f0f0; padding: 4px 0px;")
+            
+            translate_combo = QtWidgets.QComboBox()
+            translate_combo.addItem("-- Keine Übersetzung --", "")
+            translate_combo.addItem("🇬🇧 Englisch", "Englisch")
+            translate_combo.addItem("🇪🇸 Spanisch", "Spanisch")
+            translate_combo.addItem("🇫🇷 Französisch", "Französisch")
+            translate_combo.addItem("🇮🇹 Italienisch", "Italienisch")
+            translate_combo.addItem("🇸🇦 Arabisch", "Arabisch")
+            translate_combo.addItem("✏️ Andere Sprache...", "custom")
+            translate_combo.setMinimumWidth(200)
+            translate_combo.setStyleSheet("""
+                QComboBox {
+                    background-color: #2a2a2a;
+                    color: #f0f0f0;
+                    border: 1.5px solid #4a4a4a;
+                    border-radius: 6px;
+                    padding: 6px 10px;
+                    font-size: 10pt;
+                }
+                QComboBox:hover {
+                    border-color: #6a6a6a;
+                }
+                QComboBox QAbstractItemView {
+                    background-color: #2a2a2a;
+                    color: #f0f0f0;
+                    selection-background-color: #4a6a8a;
+                }
+            """)
+            
+            custom_language_input = QtWidgets.QLineEdit()
+            custom_language_input.setPlaceholderText("z.B. Japanisch, Russisch, ...")
+            custom_language_input.hide()
+            custom_language_input.setStyleSheet("""
+                QLineEdit {
+                    background-color: #2a2a2a;
+                    color: #f0f0f0;
+                    border: 1.5px solid #4a4a4a;
+                    border-radius: 6px;
+                    padding: 6px 10px;
+                    font-size: 10pt;
+                }
+                QLineEdit:focus {
+                    border-color: #6a8aaa;
+                }
+            """)
+            
+            # Show/hide custom input based on selection
+            def on_translation_changed():
+                if translate_combo.currentData() == "custom":
+                    custom_language_input.show()
+                else:
+                    custom_language_input.hide()
+            
+            translate_combo.currentIndexChanged.connect(on_translation_changed)
+            
+            translate_row = QtWidgets.QHBoxLayout()
+            translate_row.addWidget(translate_label)
+            translate_row.addWidget(translate_combo)
+            translate_row.addWidget(custom_language_input)
+            translate_row.addStretch()
+            
             # Action buttons
-            correct_btn = QtWidgets.QPushButton("✓ Korrigieren")
-            correct_btn.setStyleSheet("""
+            process_btn = QtWidgets.QPushButton("✓ Korrigieren & Übersetzen")
+            process_btn.setStyleSheet("""
                 QPushButton {
                     background-color: #5a6a2a;
                     color: #ffffff;
@@ -468,38 +550,59 @@ class MainWindow(QtWidgets.QMainWindow):
                 }
             """)
             
-            def on_correct_clicked():
-                """Handle grammar correction for history item."""
-                status_label.setText("Korrigiere Grammatik...")
-                correct_btn.setEnabled(False)
+            def on_process_clicked():
+                """Handle combined correction & translation for history item."""
+                selected_value = translate_combo.currentData()
                 
-                # Create callback that will be called with corrected text
-                def on_corrected(corrected_text: str):
-                    corrected_text_edit.setPlainText(corrected_text)
-                    copy_corrected_btn.clicked.connect(lambda: self._copy_to_clipboard(corrected_text))
+                # Determine target language
+                if selected_value == "custom":
+                    target_language = custom_language_input.text().strip()
+                    if not target_language:
+                        target_language = ""
+                elif selected_value == "":
+                    target_language = ""
+                else:
+                    target_language = selected_value
+                
+                # Set status message
+                if target_language:
+                    status_label.setText(f"Korrigiere & übersetze nach {target_language}...")
+                else:
+                    status_label.setText("Korrigiere Grammatik...")
+                
+                process_btn.setEnabled(False)
+                
+                # Create callback that will be called with processed text
+                def on_processed(processed_text: str, lang: str):
+                    corrected_text_edit.setPlainText(processed_text)
+                    copy_corrected_btn.clicked.connect(lambda: self._copy_to_clipboard(processed_text))
                     corrected_container.show()
-                    status_label.setText("✓ Grammatik korrigiert!")
-                    correct_btn.setEnabled(True)
+                    if lang:
+                        status_label.setText(f"✓ Korrigiert & übersetzt ({lang})!")
+                    else:
+                        status_label.setText("✓ Grammatik korrigiert!")
+                    process_btn.setEnabled(True)
                     dialog.setMinimumHeight(600)
                 
                 def on_error(error_msg: str):
                     status_label.setText(f"Fehler: {error_msg}")
-                    correct_btn.setEnabled(True)
+                    process_btn.setEnabled(True)
                 
-                # Store callbacks on dialog for access from controller
-                dialog._correction_callback = on_corrected
-                dialog._correction_error_callback = on_error
+                # Store callbacks and target language on dialog
+                dialog._process_callback = on_processed
+                dialog._process_error_callback = on_error
+                dialog._target_language = target_language
                 
                 # Emit signal to controller
                 self.correct_text_requested.emit(original_text, dialog)
             
-            correct_btn.clicked.connect(on_correct_clicked)
+            process_btn.clicked.connect(on_process_clicked)
             
             close_btn = QtWidgets.QPushButton("Schließen")
             close_btn.clicked.connect(dialog.accept)
             
             btn_layout = QtWidgets.QHBoxLayout()
-            btn_layout.addWidget(correct_btn)
+            btn_layout.addWidget(process_btn)
             btn_layout.addStretch()
             btn_layout.addWidget(close_btn)
             
@@ -512,6 +615,7 @@ class MainWindow(QtWidgets.QMainWindow):
             layout.addWidget(original_text_edit)
             layout.addWidget(copy_original_btn)
             layout.addWidget(corrected_container)
+            layout.addLayout(translate_row)
             layout.addWidget(status_label)
             layout.addLayout(btn_layout)
             
