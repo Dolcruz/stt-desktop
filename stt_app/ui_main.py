@@ -33,7 +33,11 @@ class SettingsDialog(QtWidgets.QDialog):
             }
         """)
 
+        # API Keys
         self._api_key_edit = QtWidgets.QLineEdit()
+        self._elevenlabs_key_edit = QtWidgets.QLineEdit()
+        self._elevenlabs_key_edit.setEchoMode(QtWidgets.QLineEdit.Password)
+        
         self._hotkey_edit = QtWidgets.QLineEdit(settings.toggle_hotkey)
         self._auto_copy_cb = QtWidgets.QCheckBox("Automatisch kopieren")
         self._auto_copy_cb.setChecked(settings.auto_copy)
@@ -76,6 +80,7 @@ class SettingsDialog(QtWidgets.QDialog):
         
         form.addRow(api_header)
         form.addRow("Groq API Key:", self._api_key_edit)
+        form.addRow("ElevenLabs API Key:", self._elevenlabs_key_edit)
         
         form.addRow(audio_header)
         form.addRow("Mikrofon:", self._device_combo)
@@ -101,6 +106,26 @@ class SettingsDialog(QtWidgets.QDialog):
         layout.setSpacing(16)
         layout.addLayout(form)
         layout.addWidget(btns)
+        
+        # Load API keys from keyring
+        self._load_api_keys()
+
+    def _load_api_keys(self) -> None:
+        """Load API keys from keyring into UI fields."""
+        from .config import get_api_key_secure
+        from stt_app.tts_client import KEYRING_SERVICE, ELEVENLABS_KEY_NAME
+        import keyring
+        
+        # Load Groq API key
+        groq_key = get_api_key_secure() or ""
+        self._api_key_edit.setText(groq_key)
+        
+        # Load ElevenLabs API key
+        try:
+            elevenlabs_key = keyring.get_password(KEYRING_SERVICE, ELEVENLABS_KEY_NAME) or ""
+            self._elevenlabs_key_edit.setText(elevenlabs_key)
+        except Exception:
+            pass
 
     def _populate_devices(self) -> None:
         try:
@@ -119,9 +144,21 @@ class SettingsDialog(QtWidgets.QDialog):
             self._device_combo.addItem("Standardgerät (System)", userData=None)
 
     def apply(self) -> None:
+        # Save Groq API key
         api = self._api_key_edit.text().strip()
         if api:
             set_api_key_secure(api)
+        
+        # Save ElevenLabs API key
+        elevenlabs_key = self._elevenlabs_key_edit.text().strip()
+        if elevenlabs_key:
+            from stt_app.tts_client import KEYRING_SERVICE, ELEVENLABS_KEY_NAME
+            import keyring
+            try:
+                keyring.set_password(KEYRING_SERVICE, ELEVENLABS_KEY_NAME, elevenlabs_key)
+            except Exception as e:
+                logger.error(f"Could not store ElevenLabs key: {e}")
+        
         s = self._settings
         s.toggle_hotkey = self._hotkey_edit.text().strip() or s.toggle_hotkey
         s.max_duration_seconds = int(self._max_dur_spin.value())
@@ -137,6 +174,7 @@ class MainWindow(QtWidgets.QMainWindow):
     start_stop_requested = QtCore.Signal()
     cancel_requested = QtCore.Signal()
     correct_text_requested = QtCore.Signal(str, object)  # (text, callback_dialog)
+    dialog_mode_requested = QtCore.Signal()  # Request to open dialog mode
 
     def __init__(self, settings: Optional[AppSettings] = None) -> None:
         super().__init__()
@@ -219,8 +257,23 @@ class MainWindow(QtWidgets.QMainWindow):
         self._visual_settings_btn = QtWidgets.QPushButton("⚙ Visualisierung")
         self._visual_settings_btn.setMinimumHeight(48)
         
+        # Dialog mode button
+        self._dialog_btn = QtWidgets.QPushButton("🗣️ Dialog-Modus")
+        self._dialog_btn.setMinimumHeight(48)
+        self._dialog_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #2a5a8a;
+                color: #ffffff;
+                font-weight: 600;
+            }
+            QPushButton:hover {
+                background-color: #3a6a9a;
+            }
+        """)
+        
         self._btn_row.addWidget(self._start_btn, 3)
         self._btn_row.addWidget(self._cancel_btn, 1)
+        self._btn_row.addWidget(self._dialog_btn, 2)
         self._btn_row.addWidget(self._settings_btn, 2)
         self._btn_row.addWidget(self._visual_settings_btn, 2)
 
@@ -266,6 +319,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Wire
         self._start_btn.clicked.connect(self.start_stop_requested.emit)
         self._cancel_btn.clicked.connect(self.cancel_requested.emit)
+        self._dialog_btn.clicked.connect(self.dialog_mode_requested.emit)
         self._settings_btn.clicked.connect(self._open_settings)
         self._visual_settings_btn.clicked.connect(self._open_visual_settings)
         act_record.triggered.connect(self.start_stop_requested.emit)

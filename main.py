@@ -15,6 +15,8 @@ from stt_app.hotkeys import HotkeyManager
 from stt_app.ui_main import MainWindow
 from stt_app.ui_overlay import RecordingOverlay
 from stt_app.ui_result_popup import ResultPopup
+from stt_app.ui_dialog import DialogWindow
+from stt_app.tts_client import TTSClient, VOICE_OPTIONS
 from stt_app.theme import apply_dark_theme
 
 
@@ -28,6 +30,7 @@ class Controller(QtCore.QObject):
 
         self.window = MainWindow(self.settings)
         self.overlay = RecordingOverlay()
+        self.dialog_window: Optional[DialogWindow] = None
         
         # Apply saved visualization settings
         self.overlay._particle_sphere.set_particle_count(self.settings.particle_count)
@@ -36,6 +39,12 @@ class Controller(QtCore.QObject):
         
         self.hotkeys = HotkeyManager()
         self.transcriber = GroqTranscriber(self.settings)
+        self.tts_client = TTSClient()
+        self.tts_client.load_api_key()  # Load ElevenLabs API key from keyring/env
+        
+        # Dialog mode state
+        self._dialog_mode_active = False
+        self._dialog_current_lang = "Deutsch"
 
         self.recorder = AudioRecorder(
             settings=self.settings,
@@ -52,6 +61,7 @@ class Controller(QtCore.QObject):
         self.window.start_stop_requested.connect(self.toggle_recording)
         self.window.cancel_requested.connect(self.cancel_recording)
         self.window.correct_text_requested.connect(self.correct_history_text)
+        self.window.dialog_mode_requested.connect(self.open_dialog_mode)
         self.overlay.cancel_requested.connect(self.cancel_recording)
         
         # Hook visual settings button
@@ -171,7 +181,12 @@ class Controller(QtCore.QObject):
         self.window.set_status("Fertig")
         self.window.set_recording_state(False)
         
-        # Check if automatic grammar correction is enabled
+        # If in dialog mode, handle differently
+        if self._dialog_mode_active and self.dialog_window:
+            self._handle_dialog_result(text)
+            return
+        
+        # Normal mode: check if automatic grammar correction is enabled
         if self.settings.auto_grammar_correction:
             # Automatically correct grammar before showing popup
             self.window.set_status("Korrigiere Grammatik automatisch...")
@@ -275,6 +290,123 @@ class Controller(QtCore.QObject):
                     QtCore.QTimer.singleShot(0, lambda: dialog._process_error_callback(str(e)))
         
         threading.Thread(target=worker, name="HistoryProcessTextThread", daemon=True).start()
+    
+    # Dialog mode methods
+    @QtCore.Slot()
+    def open_dialog_mode(self) -> None:
+        """Open the dialog mode window for two-way translation."""
+        if self.dialog_window is not None:
+            # Already open, just bring to front
+            self.dialog_window.show()
+            self.dialog_window.raise_()
+            self.dialog_window.activateWindow()
+            return
+        
+        # Check if ElevenLabs API is configured
+        if not self.tts_client.is_configured():
+            QtWidgets.QMessageBox.warning(
+                self.window,
+                "ElevenLabs API erforderlich",
+                "Bitte konfigurieren Sie den ElevenLabs API Key in den Einstellungen, um den Dialog-Modus zu nutzen."
+            )
+            return
+        
+        # Create dialog window
+        self.dialog_window = DialogWindow(self.window)
+        self.dialog_window.start_recording.connect(self._dialog_start_recording)
+        self.dialog_window.stop_recording.connect(self._dialog_stop_recording)
+        self.dialog_window.closed.connect(self._dialog_closed)
+        self.dialog_window.show()
+    
+    @QtCore.Slot(str)
+    def _dialog_start_recording(self, current_lang: str) -> None:
+        """Start recording for dialog mode."""
+        self._dialog_mode_active = True
+        self._dialog_current_lang = current_lang
+        self.dialog_window.set_status(f"Aufnahme läuft ({current_lang})...")
+        
+        # Use standard recording with overlay
+        if not self.recorder.is_recording():
+            self.recorder.start()
+            self.overlay.start()
+    
+    @QtCore.Slot()
+    def _dialog_stop_recording(self) -> None:
+        """Stop recording for dialog mode."""
+        if self.recorder.is_recording():
+            self.recorder.stop()
+    
+    @QtCore.Slot()
+    def _dialog_closed(self) -> None:
+        """Handle dialog window close."""
+        self._dialog_mode_active = False
+        self.dialog_window = None
+    
+    def _handle_dialog_result(self, original_text: str) -> None:
+        """Handle transcription result in dialog mode."""
+        if not self.dialog_window:
+            return
+        
+        self.dialog_window.set_status("Übersetze...")
+        
+        def worker():
+            try:
+                # Get target language from dialog window
+                target_lang = self.dialog_window.get_target_language()
+                current_speaker = self.dialog_window.get_current_speaker()
+                
+                # Step 1: Correct grammar
+                corrected = self.transcriber.correct_grammar(original_text)
+                
+                # Step 2: Translate to target language
+                translated = self.transcriber.translate_text(corrected, target_lang)
+                
+                # Step 3: Text-to-Speech
+                voice_id = VOICE_OPTIONS.get(target_lang, "JBFqnCBsd6RMkjVDRZzb")
+                audio = self.tts_client.text_to_speech(translated, voice_id=voice_id)
+                
+                # Step 4: Update UI on main thread
+                QtCore.QMetaObject.invokeMethod(
+                    self.dialog_window, "set_status", QtCore.Qt.QueuedConnection,
+                    QtCore.Q_ARG(str, f"Spreche aus ({target_lang})...")
+                )
+                
+                # Step 5: Play audio (blocking)
+                self.tts_client.play_audio(audio)
+                
+                # Step 6: Add to history and switch speaker
+                QtCore.QMetaObject.invokeMethod(
+                    self.dialog_window, "add_to_history", QtCore.Qt.QueuedConnection,
+                    QtCore.Q_ARG(str, f"Sprecher {current_speaker}"),
+                    QtCore.Q_ARG(str, self._dialog_current_lang),
+                    QtCore.Q_ARG(str, original_text),
+                    QtCore.Q_ARG(str, translated)
+                )
+                
+                QtCore.QMetaObject.invokeMethod(
+                    self.dialog_window, "auto_switch_speaker", QtCore.Qt.QueuedConnection
+                )
+                
+                QtCore.QMetaObject.invokeMethod(
+                    self.dialog_window, "reset_recording_state", QtCore.Qt.QueuedConnection
+                )
+                
+                QtCore.QMetaObject.invokeMethod(
+                    self.dialog_window, "set_status", QtCore.Qt.QueuedConnection,
+                    QtCore.Q_ARG(str, "Bereit für nächste Aufnahme")
+                )
+                
+            except Exception as e:
+                logging.getLogger(__name__).error(f"Dialog processing failed: {e}")
+                QtCore.QMetaObject.invokeMethod(
+                    self.dialog_window, "set_status", QtCore.Qt.QueuedConnection,
+                    QtCore.Q_ARG(str, f"Fehler: {e}")
+                )
+                QtCore.QMetaObject.invokeMethod(
+                    self.dialog_window, "reset_recording_state", QtCore.Qt.QueuedConnection
+                )
+        
+        threading.Thread(target=worker, name="DialogProcessThread", daemon=True).start()
 
     # Public controls
     @QtCore.Slot()
