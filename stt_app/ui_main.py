@@ -166,35 +166,32 @@ class MainWindow(QtWidgets.QMainWindow):
             color: #ffffff;
         """)
         
-        pill = QtWidgets.QLabel("Bereit")
-        pill.setProperty("type", "pill")
-        
         hl.addWidget(title)
         hl.addStretch(1)
-        hl.addWidget(pill)
-        self._status_pill = pill
 
-        # Small status text - just info, no button look
+        # Status display - Redesigned to NOT look like a button
         self._status_label = QtWidgets.QLabel("Bereit")
-        self._status_label.setAlignment(QtCore.Qt.AlignLeft)
+        self._status_label.setAlignment(QtCore.Qt.AlignCenter)
         self._status_label.setStyleSheet("""
             QLabel {
-                font-size: 9pt; 
-                font-weight: 400; 
-                color: #808080;
+                font-size: 12pt; 
+                font-weight: 500; 
+                color: #b0b0b0;
                 background-color: transparent;
                 border: none;
-                padding: 4px 0px;
+                padding: 12px 16px;
+                border-radius: 0px;
             }
         """)
         
-        # Info label for shortcuts - subtle, no background box
+        # Info label for shortcuts - no emoji
         info_label = QtWidgets.QLabel("Tipp: Alt+T zum Starten/Stoppen, ESC zum Abbrechen")
         info_label.setStyleSheet("""
             font-size: 9pt;
-            color: #707070;
-            background-color: transparent;
-            padding: 4px 0px;
+            color: #a0a0a0;
+            background-color: #242424;
+            border-radius: 8px;
+            padding: 10px 14px;
         """)
         
         self._history = QtWidgets.QListWidget()
@@ -321,7 +318,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def set_status(self, text: str) -> None:
         self._status_label.setText(text)
-        self._status_pill.setText(text)
         self._tray.setToolTip(text)
     
     def set_recording_state(self, is_recording: bool) -> None:
