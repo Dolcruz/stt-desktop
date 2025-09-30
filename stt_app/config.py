@@ -68,6 +68,9 @@ class AppSettings:
     particle_count: int = 600
     glow_intensity: float = 1.0
     particle_color_hue: int = 200  # Blue
+    
+    # Grammar correction
+    auto_grammar_correction: bool = False  # Automatic grammar correction after transcription
 
     def to_json(self) -> str:
         return json.dumps(asdict(self), indent=2)

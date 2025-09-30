@@ -166,16 +166,81 @@ class Controller(QtCore.QObject):
     @QtCore.Slot(str)
     def _show_result(self, text: str) -> None:
         self.window.set_status("Fertig")
-        popup = ResultPopup(text=text, auto_close_seconds=self.settings.auto_close_popup_seconds, parent=self.window)
+        
+        # Check if automatic grammar correction is enabled
+        if self.settings.auto_grammar_correction:
+            # Automatically correct grammar before showing popup
+            self.window.set_status("Korrigiere Grammatik automatisch...")
+            corrected_text = self._correct_grammar_sync(text)
+            final_text = corrected_text
+            show_correct_btn = False  # Don't show button since we already corrected
+        else:
+            final_text = text
+            show_correct_btn = True  # Show button for manual correction
+        
+        popup = ResultPopup(
+            text=final_text, 
+            auto_close_seconds=self.settings.auto_close_popup_seconds, 
+            show_correct_button=show_correct_btn,
+            parent=self.window
+        )
+        
+        # Connect grammar correction signal for manual correction
+        popup.grammar_correction_requested.connect(lambda: self._on_manual_correction(popup))
+        
         if self.settings.auto_copy:
-            QtWidgets.QApplication.clipboard().setText(text)
+            QtWidgets.QApplication.clipboard().setText(final_text)
         if self.settings.auto_paste:
             # Paste after brief delay to allow popup to render (avoid pasting into popup)
             QtCore.QTimer.singleShot(200, lambda: self.hotkeys.send_paste())
+        
+        self.window.set_status("Fertig")
         popup.exec()
         # Append to history
         timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
         self.window.append_history(timestamp, popup.get_text(), self.settings.history_limit)
+
+    def _correct_grammar_sync(self, text: str) -> str:
+        """Synchronously correct grammar of text (runs in UI thread)."""
+        try:
+            return self.transcriber.correct_grammar(text)
+        except Exception as e:
+            logging.getLogger(__name__).error(f"Grammar correction failed: {e}")
+            return text  # Return original text on error
+    
+    def _on_manual_correction(self, popup: ResultPopup) -> None:
+        """Handle manual grammar correction button click."""
+        # Get current text from popup
+        original_text = popup.get_text()
+        
+        # Correct grammar in background thread
+        def worker():
+            try:
+                corrected = self.transcriber.correct_grammar(original_text)
+                # Update popup text on UI thread
+                QtCore.QMetaObject.invokeMethod(
+                    popup, "set_text", QtCore.Qt.QueuedConnection, QtCore.Q_ARG(str, corrected)
+                )
+                QtCore.QMetaObject.invokeMethod(
+                    popup._status_label, "setText", QtCore.Qt.QueuedConnection, 
+                    QtCore.Q_ARG(str, "✓ Grammatik korrigiert")
+                )
+                QtCore.QMetaObject.invokeMethod(
+                    popup._correct_btn, "setEnabled", QtCore.Qt.QueuedConnection, 
+                    QtCore.Q_ARG(bool, True)
+                )
+            except Exception as e:
+                logging.getLogger(__name__).error(f"Manual grammar correction failed: {e}")
+                QtCore.QMetaObject.invokeMethod(
+                    popup._status_label, "setText", QtCore.Qt.QueuedConnection, 
+                    QtCore.Q_ARG(str, f"Fehler: {e}")
+                )
+                QtCore.QMetaObject.invokeMethod(
+                    popup._correct_btn, "setEnabled", QtCore.Qt.QueuedConnection, 
+                    QtCore.Q_ARG(bool, True)
+                )
+        
+        threading.Thread(target=worker, name="GrammarCorrectionThread", daemon=True).start()
 
     # Public controls
     @QtCore.Slot()

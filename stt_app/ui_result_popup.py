@@ -10,8 +10,11 @@ class ResultPopup(QtWidgets.QDialog):
 
     Supports auto-close with a countdown and a pin toggle to prevent closing.
     """
+    
+    # Signal emitted when user wants to correct grammar
+    grammar_correction_requested = QtCore.Signal()
 
-    def __init__(self, text: str, auto_close_seconds: int = 10, parent: Optional[QtWidgets.QWidget] = None) -> None:
+    def __init__(self, text: str, auto_close_seconds: int = 10, show_correct_button: bool = True, parent: Optional[QtWidgets.QWidget] = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Transkription")
         self.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint)
@@ -54,13 +57,30 @@ class ResultPopup(QtWidgets.QDialog):
 
         self._copy_btn = QtWidgets.QPushButton("Kopieren")
         self._paste_btn = QtWidgets.QPushButton("Einfügen")
+        self._correct_btn = QtWidgets.QPushButton("✓ Korrigieren")
+        self._correct_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #2a5a8a;
+                color: #ffffff;
+                font-weight: 600;
+                padding: 6px 12px;
+            }
+            QPushButton:hover {
+                background-color: #3a6a9a;
+            }
+        """)
         self._dismiss_btn = QtWidgets.QPushButton("Verwerfen")
         self._pin_btn = QtWidgets.QPushButton("Anheften")
         self._pin_btn.setCheckable(True)
+        
+        # Show correct button based on parameter
+        if not show_correct_button:
+            self._correct_btn.hide()
 
         btn_row = QtWidgets.QHBoxLayout()
         btn_row.addWidget(self._copy_btn)
         btn_row.addWidget(self._paste_btn)
+        btn_row.addWidget(self._correct_btn)
         btn_row.addStretch(1)
         btn_row.addWidget(self._pin_btn)
         btn_row.addWidget(self._dismiss_btn)
@@ -88,6 +108,7 @@ class ResultPopup(QtWidgets.QDialog):
 
         self._copy_btn.clicked.connect(self._copy)
         self._paste_btn.clicked.connect(self._paste)
+        self._correct_btn.clicked.connect(self._on_correct_clicked)
         self._dismiss_btn.clicked.connect(self.reject)
         self._pin_btn.toggled.connect(self._set_pinned)
 
@@ -132,3 +153,13 @@ class ResultPopup(QtWidgets.QDialog):
 
     def get_text(self) -> str:
         return self._text.toPlainText()
+    
+    def set_text(self, text: str) -> None:
+        """Update the displayed text (e.g., after grammar correction)."""
+        self._text.setPlainText(text)
+    
+    def _on_correct_clicked(self) -> None:
+        """Handle grammar correction button click."""
+        self._status_label.setText("Korrigiere Grammatik...")
+        self._correct_btn.setEnabled(False)
+        self.grammar_correction_requested.emit()

@@ -39,6 +39,8 @@ class SettingsDialog(QtWidgets.QDialog):
         self._auto_copy_cb.setChecked(settings.auto_copy)
         self._auto_paste_cb = QtWidgets.QCheckBox("Automatisch einfügen")
         self._auto_paste_cb.setChecked(settings.auto_paste)
+        self._auto_grammar_cb = QtWidgets.QCheckBox("Grammatik automatisch korrigieren")
+        self._auto_grammar_cb.setChecked(settings.auto_grammar_correction)
 
         self._max_dur_spin = QtWidgets.QSpinBox()
         # Allow 0 = unlimited; keep an upper sanity cap
@@ -86,6 +88,7 @@ class SettingsDialog(QtWidgets.QDialog):
         form.addRow(ux_header)
         form.addRow(self._auto_copy_cb)
         form.addRow(self._auto_paste_cb)
+        form.addRow(self._auto_grammar_cb)
 
         btns = QtWidgets.QDialogButtonBox(
             QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
@@ -125,6 +128,7 @@ class SettingsDialog(QtWidgets.QDialog):
         s.silence_threshold_rms = float(self._silence_thresh.value())
         s.auto_copy = self._auto_copy_cb.isChecked()
         s.auto_paste = self._auto_paste_cb.isChecked()
+        s.auto_grammar_correction = self._auto_grammar_cb.isChecked()
         # Save selected device index
         s.input_device_index = self._device_combo.currentData()
 
