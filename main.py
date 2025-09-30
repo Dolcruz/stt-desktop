@@ -186,9 +186,8 @@ class Controller(QtCore.QObject):
             parent=self.window
         )
         
-        # Connect grammar correction and translation signals
-        popup.grammar_correction_requested.connect(lambda: self._on_manual_correction(popup))
-        popup.translation_requested.connect(lambda text, lang: self._on_translation(popup, text, lang))
+        # Connect process signal (correct & optionally translate)
+        popup.process_requested.connect(lambda text, lang: self._on_process_text(popup, text, lang))
         
         if self.settings.auto_copy:
             QtWidgets.QApplication.clipboard().setText(final_text)
@@ -210,55 +209,41 @@ class Controller(QtCore.QObject):
             logging.getLogger(__name__).error(f"Grammar correction failed: {e}")
             return text  # Return original text on error
     
-    def _on_manual_correction(self, popup: ResultPopup) -> None:
-        """Handle manual grammar correction button click."""
-        # Get original text from popup (not the currently active one)
-        original_text = popup._original_text
+    def _on_process_text(self, popup: ResultPopup, text: str, target_language: str) -> None:
+        """Handle combined correction and optional translation request.
         
-        # Correct grammar in background thread
+        If target_language is empty, only corrects grammar.
+        If target_language is specified, corrects grammar first, then translates.
+        """
         def worker():
             try:
-                corrected = self.transcriber.correct_grammar(original_text)
-                # Update popup with corrected text on UI thread
+                # Step 1: Always correct grammar first
+                corrected = self.transcriber.correct_grammar(text)
+                
+                # Step 2: If target language specified, translate the corrected text
+                if target_language:
+                    final_text = self.transcriber.translate_text(corrected, target_language)
+                else:
+                    final_text = corrected
+                
+                # Update popup with final processed text on UI thread
                 QtCore.QMetaObject.invokeMethod(
-                    popup, "set_corrected_text", QtCore.Qt.QueuedConnection, QtCore.Q_ARG(str, corrected)
-                )
-            except Exception as e:
-                logging.getLogger(__name__).error(f"Manual grammar correction failed: {e}")
-                QtCore.QMetaObject.invokeMethod(
-                    popup._status_label, "setText", QtCore.Qt.QueuedConnection, 
-                    QtCore.Q_ARG(str, f"Fehler: {e}")
-                )
-                QtCore.QMetaObject.invokeMethod(
-                    popup._correct_btn, "setEnabled", QtCore.Qt.QueuedConnection, 
-                    QtCore.Q_ARG(bool, True)
-                )
-        
-        threading.Thread(target=worker, name="GrammarCorrectionThread", daemon=True).start()
-
-    def _on_translation(self, popup: ResultPopup, text: str, target_language: str) -> None:
-        """Handle translation request from popup."""
-        def worker():
-            try:
-                translated = self.transcriber.translate_text(text, target_language)
-                # Update popup with translated text on UI thread
-                QtCore.QMetaObject.invokeMethod(
-                    popup, "set_translated_text", QtCore.Qt.QueuedConnection,
-                    QtCore.Q_ARG(str, translated),
+                    popup, "set_processed_text", QtCore.Qt.QueuedConnection,
+                    QtCore.Q_ARG(str, final_text),
                     QtCore.Q_ARG(str, target_language)
                 )
             except Exception as e:
-                logging.getLogger(__name__).error(f"Translation failed: {e}")
+                logging.getLogger(__name__).error(f"Text processing failed: {e}")
                 QtCore.QMetaObject.invokeMethod(
                     popup._status_label, "setText", QtCore.Qt.QueuedConnection, 
                     QtCore.Q_ARG(str, f"Fehler: {e}")
                 )
                 QtCore.QMetaObject.invokeMethod(
-                    popup._translate_btn, "setEnabled", QtCore.Qt.QueuedConnection, 
+                    popup._process_btn, "setEnabled", QtCore.Qt.QueuedConnection, 
                     QtCore.Q_ARG(bool, True)
                 )
         
-        threading.Thread(target=worker, name="TranslationThread", daemon=True).start()
+        threading.Thread(target=worker, name="ProcessTextThread", daemon=True).start()
 
     @QtCore.Slot(str, object)
     def correct_history_text(self, text: str, dialog: object) -> None:

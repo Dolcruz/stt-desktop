@@ -12,10 +12,9 @@ class ResultPopup(QtWidgets.QDialog):
     Shows both original and corrected versions when grammar correction is applied.
     """
     
-    # Signal emitted when user wants to correct grammar
-    grammar_correction_requested = QtCore.Signal()
-    # Signal emitted when user wants to translate text (text, target_language)
-    translation_requested = QtCore.Signal(str, str)
+    # Signal emitted when user wants to process text (correct and optionally translate)
+    # Parameters: (original_text, target_language_or_empty)
+    process_requested = QtCore.Signal(str, str)
 
     def __init__(self, text: str, auto_close_seconds: int = 10, show_correct_button: bool = True, parent: Optional[QtWidgets.QWidget] = None) -> None:
         super().__init__(parent)
@@ -177,24 +176,6 @@ class ResultPopup(QtWidgets.QDialog):
             }
         """)
         
-        self._translate_btn = QtWidgets.QPushButton("🌐 Übersetzen")
-        self._translate_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #2a5a6a;
-                color: #ffffff;
-                font-weight: 600;
-                padding: 8px 16px;
-                border-radius: 6px;
-            }
-            QPushButton:hover {
-                background-color: #3a6a7a;
-            }
-            QPushButton:disabled {
-                background-color: #3a3a3a;
-                color: #808080;
-            }
-        """)
-        
         # Connect translation combo to show/hide custom input
         self._translate_combo.currentIndexChanged.connect(self._on_translation_changed)
         
@@ -202,13 +183,14 @@ class ResultPopup(QtWidgets.QDialog):
         translate_row.addWidget(translate_label)
         translate_row.addWidget(self._translate_combo)
         translate_row.addWidget(self._custom_language_input)
-        translate_row.addWidget(self._translate_btn)
         translate_row.addStretch()
         
         # Action buttons
         self._paste_btn = QtWidgets.QPushButton("Einfügen")
-        self._correct_btn = QtWidgets.QPushButton("✓ Korrigieren")
-        self._correct_btn.setStyleSheet("""
+        
+        # Combined correct & translate button
+        self._process_btn = QtWidgets.QPushButton("✓ Korrigieren & Übersetzen")
+        self._process_btn.setStyleSheet("""
             QPushButton {
                 background-color: #5a6a2a;
                 color: #ffffff;
@@ -224,17 +206,18 @@ class ResultPopup(QtWidgets.QDialog):
                 color: #808080;
             }
         """)
+        
         self._dismiss_btn = QtWidgets.QPushButton("Verwerfen")
         self._pin_btn = QtWidgets.QPushButton("Anheften")
         self._pin_btn.setCheckable(True)
         
-        # Show correct button based on parameter
+        # Show process button based on parameter
         if not show_correct_button:
-            self._correct_btn.hide()
+            self._process_btn.hide()
 
         btn_row = QtWidgets.QHBoxLayout()
         btn_row.addWidget(self._paste_btn)
-        btn_row.addWidget(self._correct_btn)
+        btn_row.addWidget(self._process_btn)
         btn_row.addStretch(1)
         btn_row.addWidget(self._pin_btn)
         btn_row.addWidget(self._dismiss_btn)
@@ -269,8 +252,7 @@ class ResultPopup(QtWidgets.QDialog):
         self._copy_original_btn.clicked.connect(self._copy_original)
         self._copy_corrected_btn.clicked.connect(self._copy_corrected)
         self._paste_btn.clicked.connect(self._paste)
-        self._correct_btn.clicked.connect(self._on_correct_clicked)
-        self._translate_btn.clicked.connect(self._on_translate_clicked)
+        self._process_btn.clicked.connect(self._on_process_clicked)
         self._dismiss_btn.clicked.connect(self.reject)
         self._pin_btn.toggled.connect(self._set_pinned)
 
@@ -327,23 +309,6 @@ class ResultPopup(QtWidgets.QDialog):
             return self._corrected_text
         return self._original_text
     
-    @QtCore.Slot(str)
-    def set_corrected_text(self, corrected_text: str) -> None:
-        """Set and display the corrected text."""
-        self._corrected_text = corrected_text
-        self._corrected_text_edit.setPlainText(corrected_text)
-        self._corrected_container.show()
-        self._active_version = "corrected"  # Switch to corrected by default
-        self._correct_btn.setEnabled(True)
-        self._status_label.setText("✓ Grammatik korrigiert! Korrigierte Version ist aktiv.")
-        # Increase dialog height to accommodate corrected text
-        self.setMinimumHeight(560)
-    
-    def _on_correct_clicked(self) -> None:
-        """Handle grammar correction button click."""
-        self._status_label.setText("Korrigiere Grammatik...")
-        self._correct_btn.setEnabled(False)
-        self.grammar_correction_requested.emit()
     
     def _on_translation_changed(self, index: int) -> None:
         """Handle translation language selection change."""
@@ -354,64 +319,48 @@ class ResultPopup(QtWidgets.QDialog):
         else:
             self._custom_language_input.hide()
     
-    def _on_translate_clicked(self) -> None:
-        """Handle translation button click."""
+    def _on_process_clicked(self) -> None:
+        """Handle combined correct & translate button click."""
         selected_value = self._translate_combo.currentData()
         
-        # Determine target language
+        # Determine target language (empty string = no translation, just correction)
         if selected_value == "custom":
             target_language = self._custom_language_input.text().strip()
             if not target_language:
-                self._status_label.setText("⚠️ Bitte Zielsprache eingeben")
-                return
+                # No custom language entered, treat as correction only
+                target_language = ""
         elif selected_value == "":
-            self._status_label.setText("⚠️ Bitte Zielsprache auswählen")
-            return
+            # No translation selected, just correction
+            target_language = ""
         else:
+            # Preset language selected
             target_language = selected_value
         
-        # Get the currently active text (corrected if available, otherwise original)
-        text_to_translate = self._corrected_text if self._corrected_text else self._original_text
+        # Set status message
+        if target_language:
+            self._status_label.setText(f"Korrigiere & übersetze nach {target_language}...")
+        else:
+            self._status_label.setText("Korrigiere Grammatik...")
         
-        self._status_label.setText(f"Übersetze nach {target_language}...")
-        self._translate_btn.setEnabled(False)
-        self.translation_requested.emit(text_to_translate, target_language)
+        self._process_btn.setEnabled(False)
+        
+        # Emit signal with original text and target language (or empty string)
+        self.process_requested.emit(self._original_text, target_language)
     
     @QtCore.Slot(str, str)
-    def set_translated_text(self, translated_text: str, target_language: str) -> None:
-        """Display the translated text in a message box."""
-        # Simple dialog to show translation
-        msg = QtWidgets.QMessageBox(self)
-        msg.setWindowTitle(f"Übersetzung ({target_language})")
-        msg.setText(translated_text)
-        msg.setStyleSheet("""
-            QMessageBox {
-                background-color: #181818;
-            }
-            QLabel {
-                color: #f0f0f0;
-                font-size: 11pt;
-                min-width: 400px;
-            }
-            QPushButton {
-                background-color: #2a5a8a;
-                color: #ffffff;
-                padding: 6px 16px;
-                border-radius: 6px;
-            }
-        """)
+    def set_processed_text(self, processed_text: str, target_language: str) -> None:
+        """Display the processed (corrected and optionally translated) text."""
+        self._corrected_text = processed_text
+        self._corrected_text_edit.setPlainText(processed_text)
+        self._corrected_container.show()
+        self._active_version = "corrected"  # Switch to processed text by default
+        self._process_btn.setEnabled(True)
         
-        # Add copy button
-        copy_btn = msg.addButton("📋 Kopieren", QtWidgets.QMessageBox.ActionRole)
-        msg.addButton("Schließen", QtWidgets.QMessageBox.AcceptRole)
-        
-        msg.exec()
-        
-        # If user clicked copy button
-        if msg.clickedButton() == copy_btn:
-            QtWidgets.QApplication.clipboard().setText(translated_text)
-            self._status_label.setText(f"✓ Übersetzung ({target_language}) kopiert")
+        # Update status based on whether translation was done
+        if target_language:
+            self._status_label.setText(f"✓ Korrigiert & übersetzt ({target_language})!")
         else:
-            self._status_label.setText(f"✓ Übersetzung abgeschlossen")
+            self._status_label.setText("✓ Grammatik korrigiert!")
         
-        self._translate_btn.setEnabled(True)
+        # Increase dialog height to accommodate corrected/translated text
+        self.setMinimumHeight(560)
