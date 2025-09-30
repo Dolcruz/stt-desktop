@@ -14,6 +14,8 @@ class ResultPopup(QtWidgets.QDialog):
     
     # Signal emitted when user wants to correct grammar
     grammar_correction_requested = QtCore.Signal()
+    # Signal emitted when user wants to translate text (text, target_language)
+    translation_requested = QtCore.Signal(str, str)
 
     def __init__(self, text: str, auto_close_seconds: int = 10, show_correct_button: bool = True, parent: Optional[QtWidgets.QWidget] = None) -> None:
         super().__init__(parent)
@@ -123,6 +125,86 @@ class ResultPopup(QtWidgets.QDialog):
         # Initially hide corrected container
         self._corrected_container.hide()
         
+        # Translation controls
+        translate_label = QtWidgets.QLabel("🌍 Übersetzen:")
+        translate_label.setStyleSheet("font-size: 10pt; color: #f0f0f0; padding: 4px 0px;")
+        
+        self._translate_combo = QtWidgets.QComboBox()
+        self._translate_combo.addItem("-- Keine Übersetzung --", "")
+        self._translate_combo.addItem("🇬🇧 Englisch", "Englisch")
+        self._translate_combo.addItem("🇪🇸 Spanisch", "Spanisch")
+        self._translate_combo.addItem("🇫🇷 Französisch", "Französisch")
+        self._translate_combo.addItem("🇮🇹 Italienisch", "Italienisch")
+        self._translate_combo.addItem("🇸🇦 Arabisch", "Arabisch")
+        self._translate_combo.addItem("✏️ Andere Sprache...", "custom")
+        self._translate_combo.setMinimumWidth(200)
+        self._translate_combo.setStyleSheet("""
+            QComboBox {
+                background-color: #2a2a2a;
+                color: #f0f0f0;
+                border: 1.5px solid #4a4a4a;
+                border-radius: 6px;
+                padding: 6px 10px;
+                font-size: 10pt;
+            }
+            QComboBox:hover {
+                border-color: #6a6a6a;
+            }
+            QComboBox::drop-down {
+                border: none;
+            }
+            QComboBox QAbstractItemView {
+                background-color: #2a2a2a;
+                color: #f0f0f0;
+                selection-background-color: #4a6a8a;
+            }
+        """)
+        
+        self._custom_language_input = QtWidgets.QLineEdit()
+        self._custom_language_input.setPlaceholderText("z.B. Japanisch, Russisch, ...")
+        self._custom_language_input.hide()
+        self._custom_language_input.setStyleSheet("""
+            QLineEdit {
+                background-color: #2a2a2a;
+                color: #f0f0f0;
+                border: 1.5px solid #4a4a4a;
+                border-radius: 6px;
+                padding: 6px 10px;
+                font-size: 10pt;
+            }
+            QLineEdit:focus {
+                border-color: #6a8aaa;
+            }
+        """)
+        
+        self._translate_btn = QtWidgets.QPushButton("🌐 Übersetzen")
+        self._translate_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #2a5a6a;
+                color: #ffffff;
+                font-weight: 600;
+                padding: 8px 16px;
+                border-radius: 6px;
+            }
+            QPushButton:hover {
+                background-color: #3a6a7a;
+            }
+            QPushButton:disabled {
+                background-color: #3a3a3a;
+                color: #808080;
+            }
+        """)
+        
+        # Connect translation combo to show/hide custom input
+        self._translate_combo.currentIndexChanged.connect(self._on_translation_changed)
+        
+        translate_row = QtWidgets.QHBoxLayout()
+        translate_row.addWidget(translate_label)
+        translate_row.addWidget(self._translate_combo)
+        translate_row.addWidget(self._custom_language_input)
+        translate_row.addWidget(self._translate_btn)
+        translate_row.addStretch()
+        
         # Action buttons
         self._paste_btn = QtWidgets.QPushButton("Einfügen")
         self._correct_btn = QtWidgets.QPushButton("✓ Korrigieren")
@@ -172,6 +254,7 @@ class ResultPopup(QtWidgets.QDialog):
         layout.addWidget(self._original_text_edit)
         layout.addWidget(self._copy_original_btn)
         layout.addWidget(self._corrected_container)
+        layout.addLayout(translate_row)
         layout.addLayout(btn_row)
         layout.addWidget(self._status_label)
 
@@ -187,6 +270,7 @@ class ResultPopup(QtWidgets.QDialog):
         self._copy_corrected_btn.clicked.connect(self._copy_corrected)
         self._paste_btn.clicked.connect(self._paste)
         self._correct_btn.clicked.connect(self._on_correct_clicked)
+        self._translate_btn.clicked.connect(self._on_translate_clicked)
         self._dismiss_btn.clicked.connect(self.reject)
         self._pin_btn.toggled.connect(self._set_pinned)
 
@@ -260,3 +344,74 @@ class ResultPopup(QtWidgets.QDialog):
         self._status_label.setText("Korrigiere Grammatik...")
         self._correct_btn.setEnabled(False)
         self.grammar_correction_requested.emit()
+    
+    def _on_translation_changed(self, index: int) -> None:
+        """Handle translation language selection change."""
+        selected_value = self._translate_combo.currentData()
+        # Show custom language input if "Andere Sprache..." is selected
+        if selected_value == "custom":
+            self._custom_language_input.show()
+        else:
+            self._custom_language_input.hide()
+    
+    def _on_translate_clicked(self) -> None:
+        """Handle translation button click."""
+        selected_value = self._translate_combo.currentData()
+        
+        # Determine target language
+        if selected_value == "custom":
+            target_language = self._custom_language_input.text().strip()
+            if not target_language:
+                self._status_label.setText("⚠️ Bitte Zielsprache eingeben")
+                return
+        elif selected_value == "":
+            self._status_label.setText("⚠️ Bitte Zielsprache auswählen")
+            return
+        else:
+            target_language = selected_value
+        
+        # Get the currently active text (corrected if available, otherwise original)
+        text_to_translate = self._corrected_text if self._corrected_text else self._original_text
+        
+        self._status_label.setText(f"Übersetze nach {target_language}...")
+        self._translate_btn.setEnabled(False)
+        self.translation_requested.emit(text_to_translate, target_language)
+    
+    @QtCore.Slot(str, str)
+    def set_translated_text(self, translated_text: str, target_language: str) -> None:
+        """Display the translated text in a message box."""
+        # Simple dialog to show translation
+        msg = QtWidgets.QMessageBox(self)
+        msg.setWindowTitle(f"Übersetzung ({target_language})")
+        msg.setText(translated_text)
+        msg.setStyleSheet("""
+            QMessageBox {
+                background-color: #181818;
+            }
+            QLabel {
+                color: #f0f0f0;
+                font-size: 11pt;
+                min-width: 400px;
+            }
+            QPushButton {
+                background-color: #2a5a8a;
+                color: #ffffff;
+                padding: 6px 16px;
+                border-radius: 6px;
+            }
+        """)
+        
+        # Add copy button
+        copy_btn = msg.addButton("📋 Kopieren", QtWidgets.QMessageBox.ActionRole)
+        msg.addButton("Schließen", QtWidgets.QMessageBox.AcceptRole)
+        
+        msg.exec()
+        
+        # If user clicked copy button
+        if msg.clickedButton() == copy_btn:
+            QtWidgets.QApplication.clipboard().setText(translated_text)
+            self._status_label.setText(f"✓ Übersetzung ({target_language}) kopiert")
+        else:
+            self._status_label.setText(f"✓ Übersetzung abgeschlossen")
+        
+        self._translate_btn.setEnabled(True)

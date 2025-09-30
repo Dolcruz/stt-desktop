@@ -186,8 +186,9 @@ class Controller(QtCore.QObject):
             parent=self.window
         )
         
-        # Connect grammar correction signal for manual correction
+        # Connect grammar correction and translation signals
         popup.grammar_correction_requested.connect(lambda: self._on_manual_correction(popup))
+        popup.translation_requested.connect(lambda text, lang: self._on_translation(popup, text, lang))
         
         if self.settings.auto_copy:
             QtWidgets.QApplication.clipboard().setText(final_text)
@@ -234,6 +235,30 @@ class Controller(QtCore.QObject):
                 )
         
         threading.Thread(target=worker, name="GrammarCorrectionThread", daemon=True).start()
+
+    def _on_translation(self, popup: ResultPopup, text: str, target_language: str) -> None:
+        """Handle translation request from popup."""
+        def worker():
+            try:
+                translated = self.transcriber.translate_text(text, target_language)
+                # Update popup with translated text on UI thread
+                QtCore.QMetaObject.invokeMethod(
+                    popup, "set_translated_text", QtCore.Qt.QueuedConnection,
+                    QtCore.Q_ARG(str, translated),
+                    QtCore.Q_ARG(str, target_language)
+                )
+            except Exception as e:
+                logging.getLogger(__name__).error(f"Translation failed: {e}")
+                QtCore.QMetaObject.invokeMethod(
+                    popup._status_label, "setText", QtCore.Qt.QueuedConnection, 
+                    QtCore.Q_ARG(str, f"Fehler: {e}")
+                )
+                QtCore.QMetaObject.invokeMethod(
+                    popup._translate_btn, "setEnabled", QtCore.Qt.QueuedConnection, 
+                    QtCore.Q_ARG(bool, True)
+                )
+        
+        threading.Thread(target=worker, name="TranslationThread", daemon=True).start()
 
     @QtCore.Slot(str, object)
     def correct_history_text(self, text: str, dialog: object) -> None:

@@ -134,3 +134,64 @@ class GroqTranscriber:
         result = corrected_text.strip()
         logger.info(f"Grammar correction: '{text}' → '{result}'")
         return result if result else text
+
+    @retry(
+        reraise=True,
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=8),
+        retry=retry_if_exception_type(Exception),
+    )
+    def translate_text(self, text: str, target_language: str) -> str:
+        """Translate the provided text to the target language using Groq's LLM.
+        
+        Uses the kimi-k2-instruct model to translate text accurately.
+        Returns ONLY the translated text without any additional commentary.
+        
+        Args:
+            text: The text to translate
+            target_language: Target language (e.g., "Englisch", "Spanisch", "Arabisch", etc.)
+        
+        Returns:
+            The translated text
+        """
+        client = self._ensure_client()
+        
+        # Craft a precise prompt that ensures ONLY translated text is returned
+        system_prompt = (
+            "Du bist ein präziser Übersetzer. "
+            f"Übersetze den folgenden Text AUSSCHLIESSLICH in {target_language}. "
+            "Gib NUR die Übersetzung zurück, ohne Kommentare, Erklärungen oder zusätzliche Formatierung. "
+            "Behalte die Bedeutung und den Ton des Originaltextes bei."
+        )
+        
+        user_message = f"Übersetze diesen Text in {target_language}: {text}"
+        
+        # Collect the streamed response
+        translated_text = ""
+        try:
+            completion = client.chat.completions.create(
+                model="moonshotai/kimi-k2-instruct-0905",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_message}
+                ],
+                temperature=0.3,  # Lower temperature for more consistent translations
+                max_completion_tokens=4096,
+                top_p=1,
+                stream=True,
+                stop=None
+            )
+            
+            for chunk in completion:
+                if chunk.choices[0].delta.content:
+                    translated_text += chunk.choices[0].delta.content
+                    
+        except Exception as e:
+            logger.error(f"Translation failed: {e}")
+            # Return original text on error
+            return text
+            
+        # Return the translated text, stripped of any leading/trailing whitespace
+        result = translated_text.strip()
+        logger.info(f"Translation to {target_language}: '{text}' → '{result}'")
+        return result if result else text
