@@ -193,9 +193,19 @@ def install_update(update_file: Path) -> bool:
             # 5. Delete itself
             
             update_script = current_exe.parent / "_update.bat"
+            # Escape backslashes for batch script
+            exe_name_only = current_exe.stem  # STTDesktop without .exe
             script_content = f"""@echo off
 echo Warte auf Beendigung der Anwendung...
-timeout /t 3 /nobreak >nul
+timeout /t 2 /nobreak >nul
+
+REM Warte bis STTDesktop.exe wirklich beendet ist
+:WAIT_LOOP
+tasklist /FI "IMAGENAME eq {current_exe.name}" 2>NUL | find /I /N "{current_exe.name}">NUL
+if "%ERRORLEVEL%"=="0" (
+    timeout /t 1 /nobreak >nul
+    goto WAIT_LOOP
+)
 
 echo Installiere Update...
 del /F /Q "{current_exe}"
@@ -212,9 +222,13 @@ if not exist "{current_exe}" (
     exit /b 1
 )
 
+REM Warte kurz, damit PyInstaller-Temp-Ordner bereinigt werden
+timeout /t 1 /nobreak >nul
+
 echo Starte Anwendung neu...
 start "" "{current_exe}"
 
+REM Warte und loesche Script
 timeout /t 1 /nobreak >nul
 del /F /Q "%~f0"
 """
