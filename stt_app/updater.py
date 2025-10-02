@@ -22,13 +22,25 @@ GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/rel
 def get_current_version() -> str:
     """Get current application version from VERSION file."""
     try:
-        version_file = Path(__file__).parent.parent / "VERSION"
+        # Check if running as frozen exe (PyInstaller)
+        if getattr(sys, 'frozen', False):
+            # Running as .exe - look next to executable
+            if hasattr(sys, '_MEIPASS'):
+                # PyInstaller temp folder
+                version_file = Path(sys._MEIPASS) / "VERSION"
+            else:
+                # Next to .exe
+                version_file = Path(sys.executable).parent / "VERSION"
+        else:
+            # Running as Python script
+            version_file = Path(__file__).parent.parent / "VERSION"
+        
         if version_file.exists():
             return version_file.read_text(encoding="utf-8").strip()
-        return "0.0.0"
+        return "1.0.0"  # Default to 1.0.0 instead of 0.0.0
     except Exception as e:
         logger.error(f"Could not read VERSION file: {e}")
-        return "0.0.0"
+        return "1.0.0"
 
 
 def check_for_updates() -> Optional[Tuple[str, str, str]]:
@@ -169,8 +181,11 @@ del "%~f0"
             logger.info("Update script started, exiting application")
             return True
         else:
-            # Running as Python script - just show download location
-            logger.info("Running from source, cannot auto-update. Download at: " + str(update_file))
+            # Running as Python script - just show message, don't try to update
+            logger.warning("Running from Python source - auto-update is only available for .exe version")
+            import os
+            # Open download folder
+            os.startfile(update_file.parent)
             return False
             
     except Exception as e:

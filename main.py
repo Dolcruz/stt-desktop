@@ -514,6 +514,13 @@ class Controller(QtCore.QObject):
     # Auto-Update System
     def _check_for_updates(self) -> None:
         """Check for updates in background thread."""
+        import sys
+        
+        # Only check for updates if running as .exe
+        if not getattr(sys, 'frozen', False):
+            logging.getLogger(__name__).info("Running from source - skipping update check")
+            return
+        
         def worker():
             try:
                 update_info = check_for_updates()
