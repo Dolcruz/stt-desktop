@@ -6,12 +6,16 @@ Handles audio generation from translated text using edge-tts
 import logging
 import asyncio
 import tempfile
+import time
 from pathlib import Path
 from typing import Optional
 import edge_tts
-from playsound import playsound
+import pygame
 
 logger = logging.getLogger(__name__)
+
+# Initialize pygame mixer for audio playback (Windows-compatible)
+pygame.mixer.init()
 
 
 class TTSClient:
@@ -67,9 +71,14 @@ class TTSClient:
             # Generate speech asynchronously
             asyncio.run(self._text_to_speech_async(text, voice, tmp_path))
             
-            # Play the audio file
+            # Play the audio file using pygame (Windows-compatible)
             logger.info(f"Playing audio from {tmp_path}")
-            playsound(tmp_path)
+            pygame.mixer.music.load(tmp_path)
+            pygame.mixer.music.play()
+            
+            # Wait for playback to finish
+            while pygame.mixer.music.get_busy():
+                time.sleep(0.1)
             
             # Clean up temporary file
             try:

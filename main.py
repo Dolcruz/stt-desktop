@@ -318,7 +318,7 @@ class Controller(QtCore.QObject):
         # Use standard recording with overlay
         if not self.recorder.is_recording():
             self.recorder.start()
-            self.overlay.start()
+            self.overlay.show()  # Show overlay, not start()
     
     @QtCore.Slot()
     def _dialog_stop_recording(self) -> None:

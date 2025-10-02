@@ -268,6 +268,7 @@ class DialogWindow(QtWidgets.QDialog):
         self._history_text.clear()
         self._status_label.setText("Verlauf gelöscht")
     
+    @QtCore.Slot(str, str, str, str)
     def add_to_history(self, speaker: str, language: str, original: str, translated: str) -> None:
         """Add a conversation turn to history."""
         entry = f"[{speaker} - {language}]\n{original}\n\n[→ Übersetzt]\n{translated}\n\n" + ("="*60) + "\n\n"
@@ -277,10 +278,12 @@ class DialogWindow(QtWidgets.QDialog):
         cursor.movePosition(QtGui.QTextCursor.End)
         self._history_text.setTextCursor(cursor)
     
+    @QtCore.Slot(str)
     def set_status(self, text: str) -> None:
         """Update status label."""
         self._status_label.setText(text)
     
+    @QtCore.Slot()
     def reset_recording_state(self) -> None:
         """Reset recording button to initial state (after error or cancel)."""
         self._is_recording = False
@@ -296,6 +299,7 @@ class DialogWindow(QtWidgets.QDialog):
         self._lang_a_combo.setEnabled(True)
         self._lang_b_combo.setEnabled(True)
     
+    @QtCore.Slot()
     def auto_switch_speaker(self) -> None:
         """Automatically switch to next speaker after successful turn."""
         self._current_speaker = "B" if self._current_speaker == "A" else "A"
