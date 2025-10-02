@@ -24,20 +24,30 @@ def get_current_version() -> str:
     try:
         # Check if running as frozen exe (PyInstaller)
         if getattr(sys, 'frozen', False):
-            # Running as .exe - look next to executable
+            # Running as .exe - look in PyInstaller temp folder first
             if hasattr(sys, '_MEIPASS'):
-                # PyInstaller temp folder
                 version_file = Path(sys._MEIPASS) / "VERSION"
-            else:
-                # Next to .exe
-                version_file = Path(sys.executable).parent / "VERSION"
+                logger.info(f"Looking for VERSION in PyInstaller temp: {version_file}")
+                if version_file.exists():
+                    ver = version_file.read_text(encoding="utf-8").strip()
+                    logger.info(f"Found VERSION in bundle: {ver}")
+                    return ver
+            
+            # Fallback: next to .exe
+            version_file = Path(sys.executable).parent / "VERSION"
+            logger.info(f"Looking for VERSION next to exe: {version_file}")
+            if version_file.exists():
+                ver = version_file.read_text(encoding="utf-8").strip()
+                logger.info(f"Found VERSION next to exe: {ver}")
+                return ver
         else:
             # Running as Python script
             version_file = Path(__file__).parent.parent / "VERSION"
+            if version_file.exists():
+                return version_file.read_text(encoding="utf-8").strip()
         
-        if version_file.exists():
-            return version_file.read_text(encoding="utf-8").strip()
-        return "1.0.0"  # Default to 1.0.0 instead of 0.0.0
+        logger.warning("VERSION file not found, defaulting to 1.0.0")
+        return "1.0.0"
     except Exception as e:
         logger.error(f"Could not read VERSION file: {e}")
         return "1.0.0"
