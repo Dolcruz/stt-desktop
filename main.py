@@ -16,7 +16,9 @@ from stt_app.ui_main import MainWindow
 from stt_app.ui_overlay import RecordingOverlay
 from stt_app.ui_result_popup import ResultPopup
 from stt_app.ui_dialog import DialogWindow
+from stt_app.ui_update import UpdateDialog
 from stt_app.tts_client import TTSClient, VOICE_OPTIONS
+from stt_app.updater import check_for_updates, download_update, install_update
 from stt_app.theme import apply_dark_theme
 
 
@@ -73,6 +75,9 @@ class Controller(QtCore.QObject):
         self.window.activateWindow()
         QtCore.QTimer.singleShot(300, self.window.show_tray_tip)
         self.window.set_status("Bereit")
+        
+        # Check for updates after a short delay (non-blocking)
+        QtCore.QTimer.singleShot(2000, self._check_for_updates)
 
         # Register global hotkeys in a background thread to avoid any UI freeze
         threading.Thread(target=self._register_hotkeys_bg, name="HotkeyRegister", daemon=True).start()
@@ -505,6 +510,91 @@ class Controller(QtCore.QObject):
             self.overlay._particle_sphere.set_glow_intensity(self.settings.glow_intensity)
             self.overlay._particle_sphere.set_color_hue(self.settings.particle_color_hue)
             self.window.set_status("Einstellungen verworfen")
+    
+    # Auto-Update System
+    def _check_for_updates(self) -> None:
+        """Check for updates in background thread."""
+        def worker():
+            try:
+                update_info = check_for_updates()
+                if update_info:
+                    new_version, download_url, release_notes = update_info
+                    # Show update dialog on UI thread
+                    QtCore.QMetaObject.invokeMethod(
+                        self, "_show_update_dialog", QtCore.Qt.QueuedConnection,
+                        QtCore.Q_ARG(str, new_version),
+                        QtCore.Q_ARG(str, download_url),
+                        QtCore.Q_ARG(str, release_notes)
+                    )
+            except Exception as e:
+                logging.getLogger(__name__).error(f"Error checking for updates: {e}")
+        
+        threading.Thread(target=worker, name="UpdateCheckThread", daemon=True).start()
+    
+    @QtCore.Slot(str, str, str)
+    def _show_update_dialog(self, new_version: str, download_url: str, release_notes: str) -> None:
+        """Show update dialog to user."""
+        from stt_app.updater import get_current_version
+        
+        current_version = get_current_version()
+        dialog = UpdateDialog(
+            current_version=current_version,
+            new_version=new_version,
+            download_url=download_url,
+            release_notes=release_notes,
+            parent=self.window
+        )
+        
+        # Connect download signal
+        dialog.download_requested.connect(lambda url: self._download_update(dialog, url))
+        
+        dialog.exec()
+    
+    def _download_update(self, dialog: UpdateDialog, download_url: str) -> None:
+        """Download update in background thread."""
+        def progress_callback(downloaded: int, total: int):
+            QtCore.QMetaObject.invokeMethod(
+                dialog, "update_progress", QtCore.Qt.QueuedConnection,
+                QtCore.Q_ARG(int, downloaded),
+                QtCore.Q_ARG(int, total)
+            )
+        
+        def worker():
+            try:
+                # Download update
+                update_file = download_update(download_url, progress_callback)
+                
+                if update_file:
+                    # Notify completion
+                    QtCore.QMetaObject.invokeMethod(
+                        dialog, "download_complete", QtCore.Qt.QueuedConnection
+                    )
+                    
+                    # Wait a moment for user to see completion message
+                    time.sleep(1)
+                    
+                    # Install update (this will close the app)
+                    if install_update(update_file):
+                        # Close dialog and exit app
+                        QtCore.QMetaObject.invokeMethod(
+                            dialog, "accept", QtCore.Qt.QueuedConnection
+                        )
+                        QtCore.QMetaObject.invokeMethod(
+                            self.app, "quit", QtCore.Qt.QueuedConnection
+                        )
+                else:
+                    QtCore.QMetaObject.invokeMethod(
+                        dialog, "download_error", QtCore.Qt.QueuedConnection,
+                        QtCore.Q_ARG(str, "Download fehlgeschlagen")
+                    )
+            except Exception as e:
+                logging.getLogger(__name__).error(f"Error downloading update: {e}")
+                QtCore.QMetaObject.invokeMethod(
+                    dialog, "download_error", QtCore.Qt.QueuedConnection,
+                    QtCore.Q_ARG(str, str(e))
+                )
+        
+        threading.Thread(target=worker, name="UpdateDownloadThread", daemon=True).start()
 
 
 def main() -> None:
