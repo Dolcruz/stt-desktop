@@ -1,130 +1,264 @@
-# Speech-to-Text Desktop App (Windows)
+# 🎙️ STTDesktop - Speech-to-Text Desktop App
 
-Eine moderne, professionelle Desktop-Anwendung für Speech-to-Text mit elegantem Design, 
-globalen Hotkeys und lokalen Tastenkombinationen. Verwendet Groq Whisper Large v3 für 
-präzise Transkription mit Echtzeit-Aufnahme-Feedback und Auto-Copy/Paste-Funktion.
+Professionelle Speech-to-Text Anwendung mit modernster KI-Unterstützung, 3D-Visualisierung und Dialog-Modus.
 
-## Features
+[![Latest Release](https://img.shields.io/github/v/release/Dolcruz/stt-desktop?label=Download)](https://github.com/Dolcruz/stt-desktop/releases/latest)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-### 🎨 Visuelles Design
-- **Modernes Dark Mode Design** - Professionelles dunkles Interface (schwarz-weiß)
-- **3D Partikel-Kugel Visualisierung** - Rotierende Sphere mit 600+ Partikeln
-  - Expandiert/schrumpft dynamisch basierend auf Lautstärke und Sprachinput
-  - Neon-Glow-Effekt in anpassbaren Farben
-  - Echtzeit-Rotation mit 3D-Perspektive
-- **Konfigurierbare Visualisierung** - Partikel-Anzahl, Glow-Intensität und Farbe anpassbar
-- **Live-Preview** - Echte Mikrofon-Vorschau in den Visualisierungs-Einstellungen
-- **Overlay oben rechts** - Nicht-intrusives Feedback während der Aufnahme
+---
 
-### ⚙️ Funktionalität
-- **Doppelte Hotkey-Unterstützung** - Globale Hotkeys (systemweit) + Lokale Shortcuts (im Fenster)
-- **Intelligenter Verlauf** - Alle Transkriptionen lokal gespeichert
-  - Doppelklick auf Eintrag zeigt vollständigen Text
-  - Direktes Kopieren aus Detailansicht
-- **Datenschutz** - API-Schlüssel sicher im Windows Credential Manager gespeichert
-- **Auto-Copy & Paste** - Transkription automatisch in Zwischenablage oder direkt einfügen
+## ⚡ **Quick Start für Endbenutzer**
 
-## Quick Start (Windows PowerShell)
+### **📥 Download & Installation**
 
-1. Create a virtual environment
-```
+1. **Lade die neueste Version herunter:**
+   
+   👉 **[STTDesktop.exe herunterladen](https://github.com/Dolcruz/stt-desktop/releases/latest/download/STTDesktop.exe)**
+
+2. **Starte die Datei** (Doppelklick auf `STTDesktop.exe`)
+
+3. **Fertig!** 🎉
+
+> **Windows Defender Warnung?** Das ist normal für neue .exe-Dateien!
+> - Klicke auf "Weitere Informationen"
+> - Dann auf "Trotzdem ausführen"
+
+---
+
+## ✨ **Features**
+
+### 🎯 **Kern-Funktionen**
+- ✅ **Speech-to-Text** mit Whisper (Groq API)
+- ✅ **Grammatik-Korrektur** mit KI
+- ✅ **Übersetzung** in 6+ Sprachen
+- ✅ **Dialog-Modus** mit kostenloser Sprachausgabe (Microsoft Edge TTS)
+- ✅ **Globale Hotkeys** (Alt+T zum Starten/Stoppen)
+- ✅ **Automatische Updates** (ein Klick!)
+
+### 🎨 **UI & UX**
+- 🌑 **Modernes Dark Theme**
+- 🔮 **3D-Partikel-Visualisierung** mit Live-Audio-Feedback
+- 📜 **Verlauf** mit Volltext-Ansicht
+- 🎛️ **Anpassbare Visualisierung** (Partikel, Farbe, Glow)
+- ⌨️ **Tastenkombinationen** für alle Funktionen
+
+### 🌍 **Dialog-Modus**
+- 🗣️ **Zwei-Wege-Übersetzung** in Echtzeit
+- 🔊 **Kostenlose Sprachausgabe** (kein API-Key nötig!)
+- 📝 **Gesprächsverlauf** mit Original & Übersetzung
+- 🔄 **Automatischer Sprecher-Wechsel**
+- 🎙️ **6 Sprachen**: Deutsch, Englisch, Spanisch, Französisch, Italienisch, Arabisch
+
+---
+
+## 🚀 **Erste Schritte**
+
+### **1. API Key einrichten**
+
+Du benötigst einen **kostenlosen Groq API Key** für Transkription:
+
+1. Gehe zu https://console.groq.com/keys
+2. Erstelle einen kostenlosen Account
+3. Kopiere deinen API Key
+4. Öffne STTDesktop
+5. Klicke auf **⚙ Einstellungen**
+6. Füge den API Key ein
+7. **Fertig!** 🎉
+
+### **2. Erste Aufnahme**
+
+1. Drücke **Alt+T** oder klicke **"Aufnahme starten"**
+2. Sprich etwas ein
+3. Drücke **Alt+T** erneut oder klicke **"Aufnahme beenden"**
+4. Warte auf die Transkription
+5. **Fertig!** Der Text wird automatisch kopiert
+
+### **3. Dialog-Modus nutzen**
+
+1. Klicke **🗣️ Dialog-Modus**
+2. Wähle zwei Sprachen aus
+3. Klicke **🎙️ Aufnahme starten**
+4. Sprich in Sprache A
+5. Höre die Übersetzung in Sprache B
+6. **Sprecher wechselt automatisch!**
+
+---
+
+## 🎨 **Screenshots**
+
+### Hauptfenster mit Visualisierung
+![Main Window](https://via.placeholder.com/800x500?text=Hauptfenster+mit+3D+Visualisierung)
+
+### Dialog-Modus
+![Dialog Mode](https://via.placeholder.com/800x500?text=Dialog-Modus+mit+Echtzeit-Übersetzung)
+
+### Einstellungen
+![Settings](https://via.placeholder.com/800x500?text=Einstellungen+%26+Anpassung)
+
+---
+
+## ⚙️ **Einstellungen & Anpassung**
+
+### **Hotkeys**
+- **Alt+T**: Aufnahme starten/stoppen
+- **Esc**: Aufnahme abbrechen
+
+### **Visualisierung anpassen**
+1. Klicke **⚙ Visualisierung**
+2. Passe an:
+   - Partikel-Anzahl (200-1000)
+   - Glow-Intensität (0.1-2.0)
+   - Farbe (Hue 0-359)
+3. **Live-Vorschau** mit echtem Mikrofon!
+
+### **Grammatik-Korrektur**
+- **Automatisch**: Korrigiert jeden Text sofort
+- **Manuell**: Button nach Transkription
+
+---
+
+## 🔄 **Updates**
+
+Die App **prüft automatisch** auf Updates beim Start!
+
+### **Was passiert?**
+1. App startet
+2. Prüft GitHub nach neuer Version (im Hintergrund)
+3. Wenn verfügbar: **Update-Dialog** erscheint
+4. Ein Klick auf **"Jetzt updaten"**
+5. Download mit Fortschrittsbalken
+6. Automatische Installation & Neustart
+7. **Fertig!** ✨
+
+### **Manuelle Installation:**
+Falls Auto-Update nicht funktioniert:
+👉 https://github.com/Dolcruz/stt-desktop/releases/latest
+
+---
+
+## 🛠️ **Für Entwickler**
+
+### **Voraussetzungen**
+- Python 3.10+
+- Windows 10/11 (für globale Hotkeys)
+
+### **Installation (Development)**
+
+```bash
+# Repository klonen
+git clone https://github.com/Dolcruz/stt-desktop.git
+cd stt-desktop
+
+# Virtual Environment erstellen
 python -m venv .venv
-```
-2. Activate it
-```
-.\.venv\Scripts\Activate.ps1
-```
-3. Install dependencies
-```
+.venv\Scripts\Activate.ps1
+
+# Dependencies installieren
 pip install -r requirements.txt
-```
-4. Run the app
-```
+
+# App starten
 python main.py
 ```
 
-## API Key (erforderlich!)
+### **.exe bauen**
 
-⚠️ **Du benötigst einen Groq API-Key!** Hol dir einen kostenlosen Key auf: [console.groq.com/keys](https://console.groq.com/keys)
-
-### API Key einrichten:
-
-**Option 1: Über die App-UI (empfohlen)**
-1. Starte die App: `python main.py`
-2. Gib deinen API-Key im "Groq API Key" Feld ein
-3. Klicke "Speichern" - Der Key wird sicher im Windows Credential Manager gespeichert
-
-**Option 2: Umgebungsvariable setzen**
 ```powershell
-setx GROQ_API_KEY "YOUR_GROQ_API_KEY_HERE"
-```
-Dann PowerShell neu starten.
+# Einfach:
+.\build_release.ps1
 
-## Tastenkombinationen
-
-### Globale Hotkeys (funktionieren systemweit)
-- **Alt+T**: Aufnahme starten/stoppen
-- **ESC**: Aktuelle Aufnahme abbrechen
-
-### ✨ Globale Hotkeys aktivieren (empfohlen!)
-
-**Option 1: Batch-Skript verwenden (einfachste Methode)**
-```
-Doppelklick auf: start_with_admin.bat
-```
-Das Skript startet die App automatisch mit Admin-Rechten. Die globalen Hotkeys funktionieren dann überall!
-
-**Option 2: Manuell mit Admin-Rechten starten**
-1. Rechtsklick auf PowerShell → "Als Administrator ausführen"
-2. Navigiere zum Projekt:
-   ```powershell
-   cd "C:\Users\DEIN_BENUTZER\Speech to text"
-   ```
-3. Starte die App:
-   ```powershell
-   python main.py
-   ```
-
-**Option 3: Verknüpfung mit Admin-Rechten erstellen**
-1. Rechtsklick auf Desktop → Neu → Verknüpfung
-2. Ziel: `C:\Windows\System32\cmd.exe /c "cd /d C:\Users\DEIN_BENUTZER\Speech to text && python main.py"`
-3. Rechtsklick auf die Verknüpfung → Eigenschaften → Erweitert
-4. Haken bei "Als Administrator ausführen" ✓
-5. OK → Anwenden
-
-### Lokale Shortcuts (funktionieren wenn Fenster im Fokus ist)
-Die gleichen Tastenkombinationen funktionieren auch als lokale Shortcuts, falls globale Hotkeys 
-nicht verfügbar sind (z.B. ohne Admin-Rechte).
-
-**Hinweis**: Die App zeigt dir im Status-Bereich an, ob globale Hotkeys aktiv sind oder nur 
-lokale Shortcuts verfügbar sind.
-
-## Notes
-- Audio is recorded at 16 kHz, 16-bit PCM (WAV). Temporary audio files are deleted after transcription by default.
-- By default, results are copied to clipboard and can be auto-pasted into the focused app.
-
-## Packaging (PyInstaller)
-```
-pyinstaller --noconfirm --noconsole --name "STTDesktop" --icon .\assets\app.ico main.py
-```
-
-If `pyinstaller` is not installed:
-```
+# Oder manuell:
 pip install pyinstaller
+pyinstaller --clean STTDesktop.spec
 ```
 
-## Troubleshooting
+Die fertige `.exe` ist in `dist\STTDesktop.exe`
 
-### Tastenkombinationen funktionieren nicht
-- **Lösung 1**: Stelle sicher, dass das Fenster im Fokus ist. Die lokalen Shortcuts (Alt+T, ESC) 
-  funktionieren immer wenn das Fenster fokussiert ist.
-- **Lösung 2**: Für globale Hotkeys (systemweit), starte die App mit Administrator-Rechten:
-  - Rechtsklick auf PowerShell → "Als Administrator ausführen"
-  - Dann `python main.py` ausführen
-- **Status prüfen**: Die App zeigt im Status-Bereich an, ob "Globale Hotkeys aktiv" sind oder 
-  "Tastenkürzel funktionieren wenn Fenster im Fokus ist"
+### **Release erstellen**
 
-### Weitere Probleme
-- **Audiogeräte nicht gefunden**: Mikrofon-Zugriff in Windows Datenschutz-Einstellungen aktivieren
-- **API-Fehler**: Groq API-Schlüssel in den Einstellungen überprüfen
-- **Logs**: Detaillierte Logs findest du unter `%LOCALAPPDATA%/STTDesktop/logs`
+Siehe **[RELEASE_GUIDE.md](RELEASE_GUIDE.md)** für eine komplette Anleitung!
+
+Kurz:
+1. Build .exe
+2. VERSION erhöhen
+3. GitHub Release erstellen mit Tag `v1.0.1`
+4. `.exe` hochladen
+5. **Fertig!** Alle User bekommen Auto-Update
+
+---
+
+## 📦 **Technische Details**
+
+### **Stack**
+- **UI Framework**: PySide6 (Qt for Python)
+- **Speech-to-Text**: Groq API (Whisper)
+- **LLM**: Groq API (Kimi K2)
+- **TTS**: Microsoft Edge TTS (kostenlos!)
+- **Audio**: sounddevice, soundfile
+- **Hotkeys**: keyboard (globale Hotkeys)
+- **Updates**: GitHub Releases API
+
+### **Architektur**
+```
+main.py                    # Controller & App-Logik
+├── stt_app/
+│   ├── ui_main.py        # Hauptfenster
+│   ├── ui_overlay.py     # 3D-Visualisierung
+│   ├── ui_dialog.py      # Dialog-Modus
+│   ├── ui_update.py      # Update-Dialog
+│   ├── audio.py          # Audio-Aufnahme
+│   ├── groq_client.py    # Groq API Integration
+│   ├── tts_client.py     # Text-to-Speech
+│   ├── updater.py        # Auto-Update System
+│   ├── theme.py          # Dark Theme
+│   └── config.py         # Einstellungen
+```
+
+### **API-Kosten**
+- **Groq API**: Kostenlos (mit Limits)
+- **Edge TTS**: Komplett kostenlos!
+- **GitHub Releases**: Kostenlos
+
+---
+
+## 🤝 **Mitwirken**
+
+Contributions sind willkommen! 🎉
+
+1. Fork das Repository
+2. Erstelle einen Feature-Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit deine Änderungen (`git commit -m 'Add some AmazingFeature'`)
+4. Push zum Branch (`git push origin feature/AmazingFeature`)
+5. Öffne einen Pull Request
+
+---
+
+## 📄 **Lizenz**
+
+Dieses Projekt ist unter der MIT-Lizenz lizenziert - siehe [LICENSE](LICENSE) für Details.
+
+---
+
+## 🙏 **Credits**
+
+- **Whisper** von OpenAI
+- **Groq** für blitzschnelle AI-Inferenz
+- **Microsoft Edge TTS** für kostenlose Sprachausgabe
+- **PySide6** für das UI-Framework
+
+---
+
+## 📞 **Support**
+
+- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/Dolcruz/stt-desktop/issues)
+- 💡 **Feature Requests**: [GitHub Issues](https://github.com/Dolcruz/stt-desktop/issues)
+- 📖 **Dokumentation**: [Wiki](https://github.com/Dolcruz/stt-desktop/wiki)
+
+---
+
+## 🎉 **Happy Transcribing!**
+
+Made with ❤️ and lots of ☕
+
+---
+
+**[⬇️ Download Latest Release](https://github.com/Dolcruz/stt-desktop/releases/latest/download/STTDesktop.exe)**
