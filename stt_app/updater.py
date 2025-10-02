@@ -164,21 +164,59 @@ def install_update(update_file: Path) -> bool:
             current_exe = Path(sys.executable)
             logger.info(f"Current exe: {current_exe}")
             
+            # Move update file to same directory as current exe (for easier replacement)
+            temp_update = current_exe.parent / "STTDesktop_NEW.exe"
+            
+            # Remove old temp file if exists
+            if temp_update.exists():
+                try:
+                    temp_update.unlink()
+                except:
+                    pass
+            
+            # Copy update file to same directory
+            import shutil
+            shutil.copy2(update_file, temp_update)
+            logger.info(f"Copied update to {temp_update}")
+            
+            # Delete original download
+            try:
+                update_file.unlink()
+            except:
+                pass
+            
             # Create update script that will:
             # 1. Wait for current app to close
-            # 2. Replace old .exe with new one
-            # 3. Start new .exe
-            # 4. Delete itself
+            # 2. Delete old .exe
+            # 3. Rename new .exe to old name
+            # 4. Start new .exe
+            # 5. Delete itself
             
             update_script = current_exe.parent / "_update.bat"
             script_content = f"""@echo off
 echo Warte auf Beendigung der Anwendung...
-timeout /t 2 /nobreak >nul
+timeout /t 3 /nobreak >nul
+
 echo Installiere Update...
-move /Y "{update_file}" "{current_exe}"
+del /F /Q "{current_exe}"
+if exist "{current_exe}" (
+    echo FEHLER: Konnte alte Version nicht loeschen!
+    pause
+    exit /b 1
+)
+
+ren "{temp_update}" "{current_exe.name}"
+if not exist "{current_exe}" (
+    echo FEHLER: Update fehlgeschlagen!
+    pause
+    exit /b 1
+)
+
 echo Starte Anwendung neu...
 start "" "{current_exe}"
-del "%~f0"
+
+timeout /t 1 /nobreak >nul
+del /F /Q "%~f0"
 """
             update_script.write_text(script_content, encoding="utf-8")
             
