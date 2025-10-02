@@ -105,7 +105,7 @@ class Controller(QtCore.QObject):
                     self.window,
                     "set_status",
                     QtCore.Qt.QueuedConnection,
-                    QtCore.Q_ARG(str, "Bereit • Tastenkürzel funktionieren wenn Fenster im Fokus ist"),
+                    QtCore.Q_ARG(str, "Bereit • Für systemweite Hotkeys App als Administrator starten"),
                 )
             else:
                 # Global hotkeys are active
