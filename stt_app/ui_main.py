@@ -33,10 +33,8 @@ class SettingsDialog(QtWidgets.QDialog):
             }
         """)
 
-        # API Keys
+        # API Key (Groq only - TTS is free!)
         self._api_key_edit = QtWidgets.QLineEdit()
-        self._elevenlabs_key_edit = QtWidgets.QLineEdit()
-        self._elevenlabs_key_edit.setEchoMode(QtWidgets.QLineEdit.Password)
         
         self._hotkey_edit = QtWidgets.QLineEdit(settings.toggle_hotkey)
         self._auto_copy_cb = QtWidgets.QCheckBox("Automatisch kopieren")
@@ -80,7 +78,6 @@ class SettingsDialog(QtWidgets.QDialog):
         
         form.addRow(api_header)
         form.addRow("Groq API Key:", self._api_key_edit)
-        form.addRow("ElevenLabs API Key:", self._elevenlabs_key_edit)
         
         form.addRow(audio_header)
         form.addRow("Mikrofon:", self._device_combo)
@@ -111,21 +108,12 @@ class SettingsDialog(QtWidgets.QDialog):
         self._load_api_keys()
 
     def _load_api_keys(self) -> None:
-        """Load API keys from keyring into UI fields."""
+        """Load API key from keyring into UI field."""
         from .config import get_api_key_secure
-        from stt_app.tts_client import KEYRING_SERVICE, ELEVENLABS_KEY_NAME
-        import keyring
         
         # Load Groq API key
         groq_key = get_api_key_secure() or ""
         self._api_key_edit.setText(groq_key)
-        
-        # Load ElevenLabs API key
-        try:
-            elevenlabs_key = keyring.get_password(KEYRING_SERVICE, ELEVENLABS_KEY_NAME) or ""
-            self._elevenlabs_key_edit.setText(elevenlabs_key)
-        except Exception:
-            pass
 
     def _populate_devices(self) -> None:
         try:
@@ -148,16 +136,6 @@ class SettingsDialog(QtWidgets.QDialog):
         api = self._api_key_edit.text().strip()
         if api:
             set_api_key_secure(api)
-        
-        # Save ElevenLabs API key
-        elevenlabs_key = self._elevenlabs_key_edit.text().strip()
-        if elevenlabs_key:
-            from stt_app.tts_client import KEYRING_SERVICE, ELEVENLABS_KEY_NAME
-            import keyring
-            try:
-                keyring.set_password(KEYRING_SERVICE, ELEVENLABS_KEY_NAME, elevenlabs_key)
-            except Exception as e:
-                logger.error(f"Could not store ElevenLabs key: {e}")
         
         s = self._settings
         s.toggle_hotkey = self._hotkey_edit.text().strip() or s.toggle_hotkey

@@ -1,131 +1,105 @@
 """
-ElevenLabs Text-to-Speech Client
-Handles audio generation from translated text
+Microsoft Edge Text-to-Speech Client (Free)
+Handles audio generation from translated text using edge-tts
 """
 
 import logging
-from typing import Optional, Iterator
-from elevenlabs.client import ElevenLabs
-from elevenlabs import play, stream
-import keyring
+import asyncio
+import tempfile
+from pathlib import Path
+from typing import Optional
+import edge_tts
+from playsound import playsound
 
 logger = logging.getLogger(__name__)
 
-# Service name for keyring storage
-KEYRING_SERVICE = "STTDesktop"
-ELEVENLABS_KEY_NAME = "elevenlabs_api_key"
-
 
 class TTSClient:
-    """Client for ElevenLabs Text-to-Speech API."""
+    """Client for Microsoft Edge Text-to-Speech (free)."""
     
     def __init__(self) -> None:
-        self._client: Optional[ElevenLabs] = None
-        self._api_key: Optional[str] = None
-    
-    def set_api_key(self, api_key: str) -> None:
-        """Set and validate ElevenLabs API key."""
-        if api_key and api_key.strip():
-            self._api_key = api_key.strip()
-            self._client = ElevenLabs(api_key=self._api_key)
-            # Store in keyring for persistence
-            try:
-                keyring.set_password(KEYRING_SERVICE, ELEVENLABS_KEY_NAME, self._api_key)
-                logger.info("ElevenLabs API key stored in keyring")
-            except Exception as e:
-                logger.warning(f"Could not store ElevenLabs key in keyring: {e}")
-        else:
-            self._client = None
-            self._api_key = None
-    
-    def load_api_key(self) -> bool:
-        """Load API key from keyring or environment."""
-        try:
-            # Try keyring first
-            key = keyring.get_password(KEYRING_SERVICE, ELEVENLABS_KEY_NAME)
-            if key:
-                self._api_key = key
-                self._client = ElevenLabs(api_key=key)
-                logger.info("ElevenLabs API key loaded from keyring")
-                return True
-            
-            # Try environment variable
-            import os
-            key = os.getenv("ELEVENLABS_API_KEY")
-            if key:
-                self._api_key = key
-                self._client = ElevenLabs(api_key=key)
-                logger.info("ElevenLabs API key loaded from environment")
-                return True
-            
-            logger.warning("No ElevenLabs API key found")
-            return False
-        except Exception as e:
-            logger.error(f"Error loading ElevenLabs API key: {e}")
-            return False
-    
-    def get_api_key(self) -> str:
-        """Get current API key (for display in settings)."""
-        return self._api_key or ""
+        # No API key needed - edge-tts is completely free!
+        pass
     
     def is_configured(self) -> bool:
-        """Check if client is configured with API key."""
-        return self._client is not None
+        """Always configured - no API key needed."""
+        return True
     
-    def text_to_speech(
+    async def _text_to_speech_async(
         self, 
         text: str, 
-        voice_id: str = "JBFqnCBsd6RMkjVDRZzb",  # Default: George (multilingual)
-        model_id: str = "eleven_multilingual_v2",
-        output_format: str = "mp3_44100_128"
-    ) -> Iterator[bytes]:
+        voice: str,
+        output_file: str
+    ) -> None:
         """
-        Convert text to speech and return audio stream.
+        Convert text to speech asynchronously and save to file.
         
         Args:
             text: Text to convert to speech
-            voice_id: ElevenLabs voice ID (default: George)
-            model_id: Model to use (default: eleven_multilingual_v2)
-            output_format: Audio format (default: mp3_44100_128)
+            voice: Voice ID (e.g., 'de-DE-KatjaNeural')
+            output_file: Path to save MP3 file
+        """
+        communicate = edge_tts.Communicate(text, voice)
+        await communicate.save(output_file)
+    
+    def text_to_speech_and_play(
+        self, 
+        text: str, 
+        voice: str = "de-DE-KatjaNeural"
+    ) -> None:
+        """
+        Convert text to speech and play it immediately.
         
-        Returns:
-            Iterator of audio bytes
+        Args:
+            text: Text to convert to speech
+            voice: Voice ID (default: German female)
             
         Raises:
-            ValueError: If client is not configured
-            Exception: If TTS conversion fails
+            Exception: If TTS conversion or playback fails
         """
-        if not self._client:
-            raise ValueError("ElevenLabs client not configured. Please set API key.")
-        
         try:
-            logger.info(f"Generating speech for text: {text[:50]}...")
-            audio = self._client.text_to_speech.convert(
-                text=text,
-                voice_id=voice_id,
-                model_id=model_id,
-                output_format=output_format,
-            )
-            return audio
+            logger.info(f"Generating speech for text: {text[:50]}... (voice: {voice})")
+            
+            # Create temporary file for audio
+            with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp_file:
+                tmp_path = tmp_file.name
+            
+            # Generate speech asynchronously
+            asyncio.run(self._text_to_speech_async(text, voice, tmp_path))
+            
+            # Play the audio file
+            logger.info(f"Playing audio from {tmp_path}")
+            playsound(tmp_path)
+            
+            # Clean up temporary file
+            try:
+                Path(tmp_path).unlink()
+            except Exception as e:
+                logger.warning(f"Could not delete temp audio file: {e}")
+                
         except Exception as e:
-            logger.error(f"TTS conversion failed: {e}")
-            raise
-    
-    def play_audio(self, audio: Iterator[bytes]) -> None:
-        """Play audio stream."""
-        try:
-            play(audio)
-        except Exception as e:
-            logger.error(f"Audio playback failed: {e}")
+            logger.error(f"TTS conversion or playback failed: {e}")
             raise
 
 
-# Voice options for different languages
+# Voice options for different languages (Microsoft Edge voices)
+# These are high-quality neural voices, completely free!
 VOICE_OPTIONS = {
-    "Deutsch": "pNInz6obpgDQGcFmaJgB",  # Adam (multilingual)
-    "Englisch": "JBFqnCBsd6RMkjVDRZzb",  # George (multilingual)
-    "Spanisch": "EXAVITQu4vr4xnSDxMaL",  # Bella (multilingual)
-    "Französisch": "ThT5KcBeYPX3keUQqHPh",  # Dorothy (multilingual)
-    "Italienisch": "ErXwobaYiN019PkySvjV",  # Antoni (multilingual)
-    "Arabisch": "MF3mGyEYCl7XYWbV9V6O",  # Elli (multilingual)
+    "Deutsch": "de-DE-KatjaNeural",      # German female (clear, natural)
+    "Englisch": "en-US-AriaNeural",      # English female (clear, professional)
+    "Spanisch": "es-ES-ElviraNeural",    # Spanish female (clear)
+    "Französisch": "fr-FR-DeniseNeural", # French female (clear)
+    "Italienisch": "it-IT-ElsaNeural",   # Italian female (clear)
+    "Arabisch": "ar-SA-ZariyahNeural",   # Arabic female (clear)
+}
+
+
+# Alternative male voices (if needed)
+VOICE_OPTIONS_MALE = {
+    "Deutsch": "de-DE-ConradNeural",
+    "Englisch": "en-US-GuyNeural",
+    "Spanisch": "es-ES-AlvaroNeural",
+    "Französisch": "fr-FR-HenriNeural",
+    "Italienisch": "it-IT-DiegoNeural",
+    "Arabisch": "ar-SA-HamedNeural",
 }

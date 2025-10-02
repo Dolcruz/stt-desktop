@@ -39,8 +39,7 @@ class Controller(QtCore.QObject):
         
         self.hotkeys = HotkeyManager()
         self.transcriber = GroqTranscriber(self.settings)
-        self.tts_client = TTSClient()
-        self.tts_client.load_api_key()  # Load ElevenLabs API key from keyring/env
+        self.tts_client = TTSClient()  # No API key needed - edge-tts is free!
         
         # Dialog mode state
         self._dialog_mode_active = False
@@ -302,16 +301,7 @@ class Controller(QtCore.QObject):
             self.dialog_window.activateWindow()
             return
         
-        # Check if ElevenLabs API is configured
-        if not self.tts_client.is_configured():
-            QtWidgets.QMessageBox.warning(
-                self.window,
-                "ElevenLabs API erforderlich",
-                "Bitte konfigurieren Sie den ElevenLabs API Key in den Einstellungen, um den Dialog-Modus zu nutzen."
-            )
-            return
-        
-        # Create dialog window
+        # Create dialog window (no API key needed - TTS is free!)
         self.dialog_window = DialogWindow(self.window)
         self.dialog_window.start_recording.connect(self._dialog_start_recording)
         self.dialog_window.stop_recording.connect(self._dialog_stop_recording)
@@ -361,20 +351,17 @@ class Controller(QtCore.QObject):
                 # Step 2: Translate to target language
                 translated = self.transcriber.translate_text(corrected, target_lang)
                 
-                # Step 3: Text-to-Speech
-                voice_id = VOICE_OPTIONS.get(target_lang, "JBFqnCBsd6RMkjVDRZzb")
-                audio = self.tts_client.text_to_speech(translated, voice_id=voice_id)
-                
-                # Step 4: Update UI on main thread
+                # Step 3: Update UI on main thread
                 QtCore.QMetaObject.invokeMethod(
                     self.dialog_window, "set_status", QtCore.Qt.QueuedConnection,
                     QtCore.Q_ARG(str, f"Spreche aus ({target_lang})...")
                 )
                 
-                # Step 5: Play audio (blocking)
-                self.tts_client.play_audio(audio)
+                # Step 4: Text-to-Speech and play (blocking)
+                voice = VOICE_OPTIONS.get(target_lang, "de-DE-KatjaNeural")
+                self.tts_client.text_to_speech_and_play(translated, voice=voice)
                 
-                # Step 6: Add to history and switch speaker
+                # Step 5: Add to history and switch speaker
                 QtCore.QMetaObject.invokeMethod(
                     self.dialog_window, "add_to_history", QtCore.Qt.QueuedConnection,
                     QtCore.Q_ARG(str, f"Sprecher {current_speaker}"),
