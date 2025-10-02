@@ -9,6 +9,7 @@ from typing import Callable, List, Optional
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from .config import AppSettings, load_settings, save_settings, set_api_key_secure, get_app_dir
+from .updater import get_current_version
 
 logger = logging.getLogger(__name__)
 
@@ -278,6 +279,16 @@ class MainWindow(QtWidgets.QMainWindow):
         """)
         content_l.addWidget(history_label)
         content_l.addWidget(self._history)
+        
+        # Version info at the bottom
+        version_label = QtWidgets.QLabel(f"Version {get_current_version()}")
+        version_label.setStyleSheet("""
+            font-size: 8pt;
+            color: #606060;
+            padding: 8px 0;
+        """)
+        version_label.setAlignment(QtCore.Qt.AlignCenter)
+        content_l.addWidget(version_label)
 
         layout.addWidget(content)
         self.setCentralWidget(central)
